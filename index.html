@@ -7,6 +7,8 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232f6fed'/%3E%3Ctext x='50' y='70' font-size='58' font-family='Arial, sans-serif' font-weight='700' fill='white' text-anchor='middle'%3E$%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="css/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -19,19 +21,19 @@
     </div>
     <nav class="nav">
       <button class="nav-item active" data-view="cycle">
-        <span class="nav-icon">◐</span> Stan obecny
+        <span class="nav-icon">◐</span><span class="nav-label">Stan obecny</span>
       </button>
       <button class="nav-item" data-view="assets">
-        <span class="nav-icon">▦</span> Klasy aktywów
+        <span class="nav-icon">▦</span><span class="nav-label">Klasy aktywów</span>
       </button>
       <button class="nav-item" data-view="watch">
-        <span class="nav-icon">▥</span> Aktywa
+        <span class="nav-icon">▥</span><span class="nav-label">Aktywa</span>
       </button>
       <button class="nav-item" data-view="market">
-        <span class="nav-icon">◎</span> Analizy rynkowe
+        <span class="nav-icon">◎</span><span class="nav-label">Analizy rynkowe</span>
       </button>
       <button class="nav-item" data-view="settings">
-        <span class="nav-icon">⚙</span> Ustawienia
+        <span class="nav-icon">⚙</span><span class="nav-label">Ustawienia</span>
       </button>
     </nav>
     <div class="sidebar-footer">
@@ -190,6 +192,19 @@
         <p class="note">Uwaga: darmowy plan ma limit <strong>8 zapytań / minutę</strong>, a część nietypowych symboli (np. mniejsze zagraniczne giełdy) wymaga płatnego planu. Gdy dany instrument nie jest dostępny, aplikacja pokaże komunikat z powodu albo — jeśli mamy go w lokalnym katalogu — spadnie do danych przykładowych.</p>
       </div>
       <div class="card">
+        <div class="card-header">
+          <h2>Synchronizacja między urządzeniami</h2>
+          <span class="verdict-badge" id="sync-status-badge">–</span>
+        </div>
+        <p id="sync-status-text" class="muted">–</p>
+        <div class="apikey-row">
+          <input type="text" id="sync-code-input" placeholder="Wymyśl własny kod, np. dawid-portfel-2026">
+          <button class="btn btn-primary" id="sync-code-save">Połącz</button>
+          <button class="btn btn-secondary" id="sync-code-clear">Rozłącz</button>
+        </div>
+        <p class="note">Wpisz <strong>ten sam kod</strong> na każdym urządzeniu, które ma dzielić listę obserwowanych aktywów — zmiany pojawią się na innych urządzeniach automatycznie, na żywo. To nie jest hasło ani prawdziwe logowanie — traktuj kod jak nazwę współdzielonej listy, nie jak sekret chroniący dane finansowe.</p>
+      </div>
+      <div class="card">
         <div class="card-header"><h2>Dane makroekonomiczne (cykl koniunkturalny)</h2></div>
         <p>Ocena fazy cyklu koniunkturalnego na stronie "Stan obecny" to wciąż <strong>materiał ilustracyjny</strong>. Docelowe źródła: krzywa dochodowości, inflacja, bezrobocie, PMI, polityka banków centralnych — np. FRED, Eurostat, GUS lub OECD.</p>
       </div>
@@ -204,7 +219,9 @@
 
 <script src="js/data.js"></script>
 <script src="js/config.local.js"></script>
+<script src="js/firebase-config.js"></script>
 <script src="js/live-data.js"></script>
+<script src="js/sync.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

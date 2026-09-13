@@ -37,7 +37,23 @@ const state = {
   lastMarketTicker: null,
   watchRequestToken: 0,
   marketRequestToken: 0,
+  syncCode: loadSyncCode(),
 };
+
+// ---- Synchronizacja obserwowanych aktywów (Firebase) ----
+function applyRemoteWatchlist(tickers) {
+  state.watchlist = tickers;
+  saveWatchlist();
+  if (state.currentView === "watch") renderWatchlistView();
+}
+
+function pushWatchlistIfSynced() {
+  if (state.syncCode) pushWatchlistToCloud(state.syncCode, state.watchlist);
+}
+
+if (state.syncCode) {
+  startSync(state.syncCode, applyRemoteWatchlist);
+}
 
 // Przelicza kwotę z jej waluty natywnej (domyślnie PLN — tak są wyrażone dane przykładowe)
 // na walutę wybraną w przełączniku, przez PLN jako pivot. Nieznana waluta -> null.
@@ -283,6 +299,7 @@ function addToWatchlist(ticker) {
   if (!state.watchlist.includes(ticker)) {
     state.watchlist.push(ticker);
     saveWatchlist();
+    pushWatchlistIfSynced();
   }
   renderWatchlistView();
 }
@@ -291,6 +308,7 @@ function removeFromWatchlist(ticker) {
   state.watchlist = state.watchlist.filter((t) => t !== ticker);
   state.expandedTickers.delete(ticker);
   saveWatchlist();
+  pushWatchlistIfSynced();
   renderWatchlistView();
 }
 
@@ -634,6 +652,53 @@ document.getElementById("td-apikey-clear").addEventListener("click", () => {
 });
 
 updateDataStatus();
+
+// ---- Ustawienia: synchronizacja między urządzeniami ----
+function updateSyncStatus() {
+  const badge = document.getElementById("sync-status-badge");
+  const text = document.getElementById("sync-status-text");
+  if (state.syncCode) {
+    badge.textContent = "Połączono";
+    badge.className = "verdict-badge verdict-positive";
+    text.textContent = `Ta lista jest zsynchronizowana pod kodem „${state.syncCode}”. Zmiany na tym i innych urządzeniach z tym samym kodem pojawiają się automatycznie.`;
+  } else {
+    badge.textContent = "Brak synchronizacji";
+    badge.className = "verdict-badge verdict-neutral";
+    text.textContent = "Lista obserwowanych aktywów jest zapisana tylko na tym urządzeniu.";
+  }
+}
+
+const syncCodeInput = document.getElementById("sync-code-input");
+syncCodeInput.value = state.syncCode;
+
+document.getElementById("sync-code-save").addEventListener("click", async () => {
+  const code = syncCodeInput.value.trim();
+  if (!code) return;
+  const btn = document.getElementById("sync-code-save");
+  btn.disabled = true;
+  btn.textContent = "Łączenie…";
+  try {
+    await enableSync(code, state.watchlist, applyRemoteWatchlist);
+    state.syncCode = code;
+    saveSyncCode(code);
+    updateSyncStatus();
+  } catch (e) {
+    document.getElementById("sync-status-text").textContent = `Nie udało się połączyć: ${e.message}`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Połącz";
+  }
+});
+
+document.getElementById("sync-code-clear").addEventListener("click", () => {
+  stopSync();
+  clearSyncCode();
+  state.syncCode = "";
+  syncCodeInput.value = "";
+  updateSyncStatus();
+});
+
+updateSyncStatus();
 
 // ---- Init ----
 setView("cycle");
