@@ -1,0 +1,450 @@
+// Dane przykładowe (mock/ilustracyjne) — patrz sekcja "Ustawienia" w apce.
+// Ocena fazy cyklu i klas aktywów to materiał edukacyjny oparty na klasycznych
+// zależnościach makro, NIE aktualna rekomendacja inwestycyjna.
+
+const CYCLE_PHASES = [
+  { id: "early", name: "Wczesny cykl (ożywienie)", angle: [0, 90], color: "#3b82f6" },
+  { id: "mid", name: "Środek cyklu (ekspansja)", angle: [90, 180], color: "#16a34a" },
+  { id: "late", name: "Późny cykl (szczyt / spowolnienie)", angle: [180, 270], color: "#f59e0b" },
+  { id: "recession", name: "Recesja (kontrakcja)", angle: [270, 360], color: "#dc2626" },
+];
+
+const CURRENT_CYCLE = {
+  phaseId: "late",
+  confidence: "Umiarkowana",
+  description: "Wzrost gospodarczy zwalnia z wysokiego poziomu, inflacja pozostaje podwyższona ale zaczyna hamować, a polityka banku centralnego jest wciąż restrykcyjna. To typowy obraz późnej fazy cyklu — rynek pracy jest jeszcze mocny, lecz zaczynają pojawiać się pierwsze pęknięcia (spadające PMI, spłaszczona krzywa dochodowości).",
+  indicators: [
+    {
+      label: "Krzywa dochodowości (2Y–10Y)",
+      value: "blisko zera / lekko odwrócona",
+      trend: "warning",
+      note: "Historycznie jeden z najbardziej wiarygodnych wyprzedzających sygnałów zbliżającego się spowolnienia.",
+    },
+    {
+      label: "Inflacja (CPI r/r)",
+      value: "powyżej celu, trend spadkowy",
+      trend: "down",
+      note: "Presja cenowa słabnie, ale wciąż nie wróciła do celu banku centralnego.",
+    },
+    {
+      label: "Bezrobocie",
+      value: "historycznie niskie, zaczyna rosnąć",
+      trend: "up",
+      note: "Rynek pracy zwykle jako jeden z ostatnich wskaźników reaguje na spowolnienie.",
+    },
+    {
+      label: "PMI przemysłowy",
+      value: "poniżej 50 pkt (kontrakcja)",
+      trend: "down",
+      note: "Sektor przemysłowy sygnalizuje spadek aktywności — klasyczna cecha późnego cyklu.",
+    },
+    {
+      label: "Polityka banku centralnego",
+      value: "restrykcyjna, sygnały pierwszych obniżek",
+      trend: "neutral",
+      note: "Stopy pozostają wysokie, ale rynek zaczyna wyceniać zbliżający się zwrot w polityce.",
+    },
+  ],
+};
+
+const ASSET_CLASSES = [
+  {
+    id: "akcje",
+    name: "Akcje",
+    icon: "▲",
+    tagline: "Udział we wzroście gospodarki i zyskach spółek — z rosnącą selektywnością w późnym cyklu.",
+    verdict: "Selektywnie / ostrożnie",
+    verdictLevel: "warning",
+    phaseTable: {
+      early: "Silne — zwykle najlepsza faza dla akcji",
+      mid: "Dobre — szeroki, stabilny wzrost",
+      late: "Selektywne — jakość i wartość górują nad wzrostem",
+      recession: "Słabe — presja na zyski i wyceny",
+    },
+    analogs: [
+      { period: "1999–2000 (szczyt dot-com)", text: "Rynek rósł napędzany wąską grupą spółek technologicznych przy rozciągniętych wycenach. Po szczycie nastąpiła wieloletnia, głęboka korekta w segmencie wzrostowym." },
+      { period: "2006–2007 (przed kryzysem finansowym)", text: "Indeksy piły się na nowe szczyty mimo pogarszających się fundamentów sektora nieruchomości i kredytowego — aż do gwałtownego załamania w 2008 r." },
+      { period: "2018–2019", text: "Fed podnosił stopy, wzrost gospodarczy zwalniał, a rynek pozostawał we wzrostowym trendzie, ale z wyraźnie większą zmiennością i okresowymi głębokimi korektami." },
+    ],
+    pros: [
+      "Udział w długoterminowym wzroście gospodarki i zysków firm",
+      "Wysoka płynność większości rynków",
+      "Możliwość uzyskania dochodu z dywidend",
+      "Historycznie najlepsza klasa aktywów chroniąca przed inflacją w długim terminie",
+    ],
+    cons: [
+      "Wysoka zmienność, szczególnie w późnym cyklu",
+      "Ryzyko istotnej korekty przy pogorszeniu danych makro",
+      "Wyceny mogą być rozciągnięte względem fundamentów",
+      "Wrażliwość na zmiany stóp procentowych",
+    ],
+  },
+  {
+    id: "obligacje",
+    name: "Obligacje",
+    icon: "▬",
+    tagline: "Stabilny dochód odsetkowy i naturalna przeciwwaga dla akcji — zyskują na atrakcyjności pod koniec cyklu.",
+    verdict: "Warto rozważyć (budowa pozycji)",
+    verdictLevel: "positive",
+    phaseTable: {
+      early: "Neutralne — stopy zwykle jeszcze niskie, ale mogą zacząć rosnąć",
+      mid: "Neutralne — rentowności rosną wraz z ekspansją",
+      late: "Dobre — atrakcyjne rentowności, budowanie pozycji przed cięciami stóp",
+      recession: "Silne — ceny rosną, gdy bank centralny tnie stopy",
+    },
+    analogs: [
+      { period: "2000–2001", text: "Obligacje skarbowe wyraźnie zyskiwały, gdy Fed rozpoczął cykl obniżek stóp po pęknięciu bańki internetowej." },
+      { period: "2007", text: "Obligacje skarbowe pełniły rolę bezpiecznej przystani — ceny rosły w miarę narastania napięć na rynku kredytowym, jeszcze przed pełnym wybuchem kryzysu." },
+    ],
+    pros: [
+      "Przewidywalny dochód odsetkowy",
+      "Potencjał zysków kapitałowych, gdy stopy zaczynają spadać",
+      "Skuteczna dywersyfikacja względem akcji, zwłaszcza w recesji",
+      "Niższa zmienność niż w przypadku akcji",
+    ],
+    cons: [
+      "Ryzyko stopy procentowej — ceny spadają, gdy rentowności rosną",
+      "Ryzyko kredytowe w przypadku obligacji korporacyjnych",
+      "Realna strata siły nabywczej przy wysokiej inflacji",
+      "Niższy potencjał zwrotu niż akcje w długim terminie",
+    ],
+  },
+  {
+    id: "waluty",
+    name: "System monetarny i waluty",
+    icon: "$",
+    tagline: "Polityka banków centralnych i przepływy kapitału decydują o sile walut — kluczowy wskaźnik wyprzedzający dla innych klas aktywów.",
+    verdict: "Obserwuj rozbieżności polityk banków centralnych",
+    verdictLevel: "neutral",
+    phaseTable: {
+      early: "Waluty ryzykowne (surowcowe, rynków wschodzących) zwykle zyskują",
+      mid: "Względnie stabilnie, zależnie od tempa zacieśniania polityki",
+      late: "Rozbieżności polityk banków centralnych, waluta rezerwowa często silna",
+      recession: "Waluty bezpieczne (USD, CHF, JPY) zwykle zyskują najbardziej",
+    },
+    analogs: [
+      { period: "2000–2001", text: "Dolar amerykański pozostawał silny aż do szczytu cyklu, po czym osłabł wraz z obniżkami stóp w reakcji na spowolnienie." },
+      { period: "2007–2008", text: "Dolar początkowo słabł przy niższych stopach w USA, by następnie gwałtownie umocnić się jako globalna bezpieczna przystań w szczycie kryzysu finansowego." },
+    ],
+    pros: [
+      "Waluty defensywne mogą chronić kapitał w okresach niepewności",
+      "Dywersyfikacja geograficzna i walutowa portfela",
+      "Polityka banków centralnych daje wyprzedzające sygnały dla innych klas aktywów",
+      "Wysoka płynność rynku walutowego",
+    ],
+    cons: [
+      "Bardzo trudne do przewidzenia w krótkim terminie",
+      "Interwencje banków centralnych mogą zniekształcać rynek",
+      "Zerowe lub ujemne oprocentowanie części walut",
+      "Istotny wpływ czynników geopolitycznych",
+    ],
+  },
+  {
+    id: "metale",
+    name: "Metale szlachetne",
+    icon: "◆",
+    tagline: "Klasyczne zabezpieczenie przed niepewnością i spadkiem realnych stóp procentowych.",
+    verdict: "Warto rozważyć jako zabezpieczenie",
+    verdictLevel: "positive",
+    phaseTable: {
+      early: "Neutralne / słabsze — kapitał wraca do aktywów ryzykownych",
+      mid: "Neutralne",
+      late: "Dobre — rośnie popyt na zabezpieczenie",
+      recession: "Silne — spadek realnych stóp i ucieczka do bezpiecznych aktywów",
+    },
+    analogs: [
+      { period: "2007–2012", text: "Złoto weszło w wieloletni silny trend wzrostowy w trakcie i po globalnym kryzysie finansowym, napędzane spadkiem realnych stóp i luzowaniem monetarnym." },
+      { period: "2000–2001", text: "Po pęknięciu bańki dot-com złoto rozpoczęło wieloletnią hossę trwającą przez większość dekady." },
+    ],
+    pros: [
+      "Tradycyjne zabezpieczenie przed inflacją i niepewnością",
+      "Niska lub ujemna korelacja z akcjami w okresach kryzysowych",
+      "Ograniczona podaż fizyczna",
+      "Globalnie uznawany przechowalnik wartości",
+    ],
+    cons: [
+      "Brak bieżącego dochodu (odsetek, dywidendy)",
+      "Możliwa wysoka zmienność w krótkim terminie",
+      "Koszty przechowywania przy fizycznym metalu",
+      "Słabsze zachowanie w okresach silnego wzrostu i wysokich realnych stóp",
+    ],
+  },
+  {
+    id: "surowce",
+    name: "Surowce",
+    icon: "●",
+    tagline: "Bezpośrednia ekspozycja na globalny popyt i podaż — zwykle szczyt osiągają najpóźniej w cyklu.",
+    verdict: "Mieszanie / selektywnie",
+    verdictLevel: "warning",
+    phaseTable: {
+      early: "Odbicie od dołka cyklu",
+      mid: "Silne — rosnący popyt przemysłowy",
+      late: "Szczyt cenowy, wysoka zmienność",
+      recession: "Słabe — załamanie popytu",
+    },
+    analogs: [
+      { period: "2007–2008", text: "Ceny ropy naftowej osiągnęły historyczny szczyt (ok. 147 USD/baryłkę) tuż przed wybuchem globalnej recesji, po czym nastąpił gwałtowny spadek." },
+      { period: "2021–2022", text: "Silny wzrost cen surowców w warunkach wysokiej inflacji, a następnie wyraźna korekta wraz ze spowolnieniem globalnego popytu." },
+    ],
+    pros: [
+      "Naturalna ochrona przed inflacją",
+      "Dywersyfikacja — niska korelacja z akcjami i obligacjami",
+      "Bezpośrednia ekspozycja na realną gospodarkę",
+    ],
+    cons: [
+      "Bardzo wysoka zmienność cen",
+      "Brak bieżącego dochodu",
+      "Silna wrażliwość na spowolnienie gospodarcze",
+      "Ryzyko geopolityczne i pogodowe (surowce rolne)",
+    ],
+  },
+  {
+    id: "nieruchomosci",
+    name: "Nieruchomości i REIT-y",
+    icon: "▦",
+    tagline: "Dochód z czynszów i ekspozycja na rynek nieruchomości — silnie wrażliwe na poziom stóp procentowych.",
+    verdict: "Zachować ostrożność",
+    verdictLevel: "negative",
+    phaseTable: {
+      early: "Stabilizacja i powolne odbicie",
+      mid: "Silne — rosnący popyt i czynsze",
+      late: "Słabnące — rosnące koszty finansowania",
+      recession: "Słabe — spadek popytu i wycen",
+    },
+    analogs: [
+      { period: "2006–2008", text: "Szczyt boomu na rynku nieruchomości w USA, po którym nastąpił głęboki krach będący jedną z głównych przyczyn globalnego kryzysu finansowego." },
+      { period: "2018–2019", text: "REIT-y znalazły się pod presją rosnących stóp procentowych, a następnie wyraźnie odbiły, gdy bank centralny zasygnalizował zwrot w polityce monetarnej." },
+    ],
+    pros: [
+      "Regularny dochód z czynszów / dywidend REIT",
+      "Potencjalna ochrona przed inflacją poprzez rosnące czynsze",
+      "Dywersyfikacja portfela o aktywo namacalne",
+    ],
+    cons: [
+      "Bardzo wysoka wrażliwość na zmiany stóp procentowych",
+      "Niska płynność w przypadku nieruchomości bezpośrednich",
+      "Ryzyko lokalnego rynku i popytu",
+      "REIT-y mogą silnie korelować z akcjami w kryzysach płynnościowych",
+    ],
+  },
+];
+
+// Katalog instrumentów (mock/ilustracyjny) — ceny bazowe wyrażone w PLN.
+// Pełne dane (zmiana dnia, otwarcie, min/max, 52-tyg.) generowane deterministycznie
+// z tickera, żeby nie trzeba było ręcznie wpisywać ich dla dziesiątek instrumentów.
+const MARKET_SEED = [
+  // Akcje
+  { ticker: "AAPL", name: "Apple Inc.", assetClass: "akcje", price: 815.50, cap: "3.1 bln USD" },
+  { ticker: "MSFT", name: "Microsoft Corp.", assetClass: "akcje", price: 1610.75, cap: "2.9 bln USD" },
+  { ticker: "GOOGL", name: "Alphabet Inc. (Google)", assetClass: "akcje", price: 770.25, cap: "2.4 bln USD" },
+  { ticker: "AMZN", name: "Amazon.com Inc.", assetClass: "akcje", price: 869.00, cap: "2.3 bln USD" },
+  { ticker: "NVDA", name: "NVIDIA Corp.", assetClass: "akcje", price: 730.75, cap: "4.5 bln USD" },
+  { ticker: "TSLA", name: "Tesla Inc.", assetClass: "akcje", price: 1343.00, cap: "1.1 bln USD" },
+  { ticker: "META", name: "Meta Platforms Inc.", assetClass: "akcje", price: 2409.50, cap: "1.5 bln USD" },
+  { ticker: "JPM", name: "JPMorgan Chase & Co.", assetClass: "akcje", price: 967.75, cap: "700 mld USD" },
+  { ticker: "CDR.WA", name: "CD Projekt", assetClass: "akcje", price: 112.40, cap: "13.9 mld PLN" },
+  { ticker: "PKN.WA", name: "PKN Orlen", assetClass: "akcje", price: 58.30, cap: "48.6 mld PLN" },
+  { ticker: "ALE.WA", name: "Allegro.eu", assetClass: "akcje", price: 29.95, cap: "20.2 mld PLN" },
+  { ticker: "KGH.WA", name: "KGHM Polska Miedź", assetClass: "akcje", price: 145.00, cap: "28.9 mld PLN" },
+  { ticker: "PZU.WA", name: "PZU", assetClass: "akcje", price: 48.50, cap: "41.2 mld PLN" },
+  { ticker: "PEO.WA", name: "Bank Pekao", assetClass: "akcje", price: 185.00, cap: "48.5 mld PLN" },
+  { ticker: "DNP.WA", name: "Dino Polska", assetClass: "akcje", price: 420.00, cap: "38.7 mld PLN" },
+  { ticker: "LPP.WA", name: "LPP", assetClass: "akcje", price: 18500.00, cap: "34.1 mld PLN" },
+
+  // Indeksy
+  { ticker: "^GSPC", name: "S&P 500", assetClass: "indeks", price: 6450.20 },
+  { ticker: "^NDX", name: "Nasdaq 100", assetClass: "indeks", price: 22800.50 },
+  { ticker: "^DJI", name: "Dow Jones Industrial Average", assetClass: "indeks", price: 41250.00 },
+  { ticker: "WIG20.WA", name: "WIG20", assetClass: "indeks", price: 2680.40 },
+  { ticker: "^GDAXI", name: "DAX", assetClass: "indeks", price: 19200.30 },
+  { ticker: "^FTSE", name: "FTSE 100", assetClass: "indeks", price: 8200.00 },
+  { ticker: "^N225", name: "Nikkei 225", assetClass: "indeks", price: 39500.00 },
+  { ticker: "^HSI", name: "Hang Seng", assetClass: "indeks", price: 20500.00 },
+  { ticker: "^FCHI", name: "CAC 40", assetClass: "indeks", price: 7650.00 },
+  { ticker: "^STOXX50E", name: "Euro Stoxx 50", assetClass: "indeks", price: 5150.00 },
+
+  // ETF-y
+  { ticker: "VWRA.L", name: "Vanguard FTSE All-World UCITS ETF (Acc)", assetClass: "etf", price: 486.20 },
+  { ticker: "VWCE.DE", name: "Vanguard FTSE All-World UCITS ETF (Acc) — Xetra", assetClass: "etf", price: 458.90 },
+  { ticker: "VUSA.L", name: "Vanguard S&P 500 UCITS ETF (Dist)", assetClass: "etf", price: 342.75 },
+  { ticker: "VUAA.L", name: "Vanguard S&P 500 UCITS ETF (Acc)", assetClass: "etf", price: 645.20 },
+  { ticker: "VUAA.DE", name: "Vanguard S&P 500 UCITS ETF (Acc) — Xetra", assetClass: "etf", price: 645.20 },
+  { ticker: "CSPX.L", name: "iShares Core S&P 500 UCITS ETF (Acc)", assetClass: "etf", price: 2251.00 },
+  { ticker: "SXR8.DE", name: "iShares Core S&P 500 UCITS ETF (Acc) — Xetra", assetClass: "etf", price: 2251.00 },
+  { ticker: "IWDA.AS", name: "iShares Core MSCI World UCITS ETF (Acc)", assetClass: "etf", price: 415.30 },
+  { ticker: "EUNL.DE", name: "iShares Core MSCI World UCITS ETF (Acc) — Xetra", assetClass: "etf", price: 415.30 },
+  { ticker: "EIMI.L", name: "iShares Core MSCI EM IMI UCITS ETF", assetClass: "etf", price: 128.40 },
+  { ticker: "SPY", name: "SPDR S&P 500 ETF Trust", assetClass: "etf", price: 2547.75 },
+  { ticker: "QQQ", name: "Invesco QQQ Trust (Nasdaq 100)", assetClass: "etf", price: 2212.00 },
+  { ticker: "GLD", name: "SPDR Gold Shares", assetClass: "etf", price: 967.75 },
+  { ticker: "ARKK", name: "ARK Innovation ETF", assetClass: "etf", price: 229.10 },
+
+  // Metale szlachetne / przemysłowe (kontrakty terminowe)
+  { ticker: "GC=F", name: "Złoto (futures)", assetClass: "metale", price: 8950.00 },
+  { ticker: "SI=F", name: "Srebro (futures)", assetClass: "metale", price: 126.40 },
+  { ticker: "PL=F", name: "Platyna (futures)", assetClass: "metale", price: 3871.00 },
+  { ticker: "HG=F", name: "Miedź (futures)", assetClass: "metale", price: 16.59 },
+
+  // Surowce (kontrakty terminowe)
+  { ticker: "CL=F", name: "Ropa WTI (futures)", assetClass: "surowce", price: 312.40 },
+  { ticker: "NG=F", name: "Gaz ziemny (futures)", assetClass: "surowce", price: 12.25 },
+  { ticker: "ZW=F", name: "Pszenica (futures)", assetClass: "surowce", price: 22.91 },
+  { ticker: "ZC=F", name: "Kukurydza (futures)", assetClass: "surowce", price: 16.99 },
+  { ticker: "KC=F", name: "Kawa (futures)", assetClass: "surowce", price: 9.28 },
+
+  // Kryptowaluty
+  { ticker: "BTC-USD", name: "Bitcoin", assetClass: "krypto", price: 426600.00, cap: "2.1 bln USD" },
+  { ticker: "ETH-USD", name: "Ethereum", assetClass: "krypto", price: 16590.00, cap: "505 mld USD" },
+  { ticker: "SOL-USD", name: "Solana", assetClass: "krypto", price: 829.50, cap: "112 mld USD" },
+  { ticker: "XRP-USD", name: "XRP", assetClass: "krypto", price: 11.06, cap: "160 mld USD" },
+  { ticker: "ADA-USD", name: "Cardano", assetClass: "krypto", price: 3.75, cap: "34 mld USD" },
+  { ticker: "DOGE-USD", name: "Dogecoin", assetClass: "krypto", price: 1.38, cap: "51 mld USD" },
+  { ticker: "BNB-USD", name: "BNB (Binance Coin)", assetClass: "krypto", price: 3871.00, cap: "136 mld USD" },
+
+  // REIT-y
+  { ticker: "O", name: "Realty Income Corp.", assetClass: "reit", price: 229.10, cap: "50 mld USD" },
+  { ticker: "SPG", name: "Simon Property Group", assetClass: "reit", price: 679.40, cap: "63 mld USD" },
+  { ticker: "PLD", name: "Prologis Inc.", assetClass: "reit", price: 466.10, cap: "110 mld USD" },
+  { ticker: "PSA", name: "Public Storage", assetClass: "reit", price: 1224.50, cap: "54 mld USD" },
+  { ticker: "AVB", name: "AvalonBay Communities", assetClass: "reit", price: 809.75, cap: "29 mld USD" },
+  { ticker: "EQIX", name: "Equinix Inc.", assetClass: "reit", price: 3515.50, cap: "85 mld USD" },
+
+  // Kontrakty terminowe finansowe
+  { ticker: "ES=F", name: "S&P 500 (kontrakt terminowy)", assetClass: "kontrakt", price: 25497.25 },
+  { ticker: "NQ=F", name: "Nasdaq 100 (kontrakt terminowy)", assetClass: "kontrakt", price: 90257.50 },
+  { ticker: "YM=F", name: "Dow Jones (kontrakt terminowy)", assetClass: "kontrakt", price: 163135.00 },
+  { ticker: "ZB=F", name: "Obligacje skarbowe USA 30L (kontrakt terminowy)", assetClass: "kontrakt", price: 466.10 },
+];
+
+function deriveMarketStats(ticker, price) {
+  const rng = mulberry32(hashString(`${ticker}:stats`));
+  const changePct = (rng() - 0.5) * 4;
+  const open = price * (1 - changePct / 100 + (rng() - 0.5) * 0.015);
+  const high = Math.max(open, price) * (1 + rng() * 0.01);
+  const low = Math.min(open, price) * (1 - rng() * 0.01);
+  const w52h = price * (1.15 + rng() * 0.15);
+  const w52l = price * (0.85 - rng() * 0.2);
+  return { changePct, open, high, low, w52h, w52l };
+}
+
+const MARKET_MOCK = {};
+MARKET_SEED.forEach(({ ticker, name, assetClass, price, cap }) => {
+  MARKET_MOCK[ticker] = { name, assetClass, price, cap: cap || "—", ...deriveMarketStats(ticker, price) };
+});
+
+const ASSET_CLASS_LABELS = {
+  akcje: "Akcja",
+  indeks: "Indeks",
+  metale: "Metal",
+  surowce: "Surowiec",
+  etf: "ETF",
+  krypto: "Kryptowaluta",
+  reit: "REIT",
+  kontrakt: "Kontrakt terminowy",
+};
+
+// Kursy walut — ile PLN kosztuje 1 jednostka danej waluty (mock/ilustracyjne).
+// Waluty spoza PLN/USD/EUR służą jako "pivot" do przeliczenia notowań z zagranicznych
+// giełd (np. GBP z Londynu, JPY z Tokio) na walutę wybraną w przełączniku.
+const FX_RATES_PLN = {
+  PLN: 1, USD: 3.95, EUR: 4.30, GBP: 5.02, JPY: 0.026,
+  HKD: 0.51, CHF: 4.55, CAD: 2.85, AUD: 2.55, CNY: 0.55,
+};
+const CURRENCY_LOCALES = { PLN: "pl-PL", USD: "en-US", EUR: "de-DE" };
+
+// Wyszukiwarka instrumentów — dopasowanie po tickerze lub nazwie (jak podpowiedzi w sklepie internetowym)
+function searchInstruments(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return Object.entries(MARKET_MOCK)
+    .filter(([ticker, m]) => ticker.toLowerCase().includes(q) || m.name.toLowerCase().includes(q))
+    .sort((a, b) => {
+      const aStarts = a[0].toLowerCase().startsWith(q) || a[1].name.toLowerCase().startsWith(q);
+      const bStarts = b[0].toLowerCase().startsWith(q) || b[1].name.toLowerCase().startsWith(q);
+      return aStarts === bStarts ? 0 : aStarts ? -1 : 1;
+    })
+    .slice(0, 8)
+    .map(([ticker, m]) => ({ ticker, ...m }));
+}
+
+// ---- Historia cen (mock, 5 lat) — deterministyczna na podstawie tickera, żeby wykres był stabilny między odświeżeniami ----
+function hashString(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+  return h >>> 0;
+}
+
+function mulberry32(seed) {
+  return function () {
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const PRICE_HISTORY_DAYS = 365 * 5;
+const priceHistoryCache = {};
+
+// Zwraca historię cen jako rosnącą tablicę {date: "RRRR-MM-DD", close: number} —
+// dokładnie ten sam kształt co dane historyczne z Twelve Data (patrz js/live-data.js),
+// żeby dalszy kod (wykresy, zmiany %) nie musiał wiedzieć, skąd pochodzą dane.
+function getPriceHistory(ticker) {
+  if (priceHistoryCache[ticker]) return priceHistoryCache[ticker];
+  const meta = MARKET_MOCK[ticker];
+  const currentPrice = meta ? meta.price : 100;
+  const rng = mulberry32(hashString(ticker));
+  const dailyDrift = 0.00035;
+  const closes = [currentPrice * 0.5];
+  for (let i = 1; i < PRICE_HISTORY_DAYS; i++) {
+    const vol = (rng() - 0.5) * 0.024;
+    closes.push(Math.max(closes[i - 1] * (1 + dailyDrift + vol), 0.01));
+  }
+  const scale = currentPrice / closes[closes.length - 1];
+  const today = new Date();
+  const series = closes.map((c, i) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - (PRICE_HISTORY_DAYS - 1 - i));
+    return { date: d.toISOString().slice(0, 10), close: c * scale };
+  });
+  priceHistoryCache[ticker] = series;
+  return series;
+}
+
+// series: rosnąca tablica {date, close}. Znajduje najbliższą sesję sprzed `daysAgo` dni
+// (radzi sobie z lukami po weekendach/świętach w danych live, gdzie nie ma sesji co dzień).
+function pctChangeOverDays(series, daysAgo) {
+  if (!series || series.length < 2) return null;
+  const current = series[series.length - 1].close;
+  const targetDate = new Date();
+  targetDate.setDate(targetDate.getDate() - daysAgo);
+  const targetStr = targetDate.toISOString().slice(0, 10);
+  let past = series[0].close;
+  for (let i = 0; i < series.length; i++) {
+    if (series[i].date <= targetStr) past = series[i].close;
+    else break;
+  }
+  if (!past) return null;
+  return ((current - past) / past) * 100;
+}
+
+function pctChange5y(series) {
+  if (!series || series.length < 2) return null;
+  const first = series[0].close;
+  const last = series[series.length - 1].close;
+  if (!first) return null;
+  return ((last - first) / first) * 100;
+}
+
+function downsampleWeekly(series) {
+  const out = [];
+  for (let i = 0; i < series.length; i += 7) out.push(series[i]);
+  const last = series[series.length - 1];
+  if (out[out.length - 1] !== last) out.push(last);
+  return out;
+}
+
+function formatMonthYear(dateStr) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("pl-PL", { month: "short", year: "2-digit" });
+}

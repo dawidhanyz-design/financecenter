@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finance Center</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232f6fed'/%3E%3Ctext x='50' y='70' font-size='58' font-family='Arial, sans-serif' font-weight='700' fill='white' text-anchor='middle'%3E$%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">FC</span>
+      <span class="brand-name">Finance Center</span>
+    </div>
+    <nav class="nav">
+      <button class="nav-item active" data-view="cycle">
+        <span class="nav-icon">◐</span> Stan obecny
+      </button>
+      <button class="nav-item" data-view="assets">
+        <span class="nav-icon">▦</span> Klasy aktywów
+      </button>
+      <button class="nav-item" data-view="watch">
+        <span class="nav-icon">▥</span> Aktywa
+      </button>
+      <button class="nav-item" data-view="market">
+        <span class="nav-icon">◎</span> Analizy rynkowe
+      </button>
+      <button class="nav-item" data-view="settings">
+        <span class="nav-icon">⚙</span> Ustawienia
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <span class="data-status" id="data-status">
+        <span class="dot dot-mock" id="data-status-dot"></span> <span id="data-status-text">Dane przykładowe</span>
+      </span>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <header class="topbar">
+      <div class="topbar-title">
+        <h1 id="view-title">Stan obecny</h1>
+        <p id="view-subtitle">Na jakim etapie cyklu koniunkturalnego jesteśmy</p>
+      </div>
+      <div class="topbar-actions">
+        <div class="search-box">
+          <input id="ticker-search" type="text" placeholder="Szukaj spółki, np. Apple, AAPL...">
+          <div class="asset-suggestions" id="ticker-suggestions"></div>
+        </div>
+        <div class="currency-switch" id="currency-switch">
+          <button type="button" data-currency="PLN">PLN</button>
+          <button type="button" data-currency="USD">USD</button>
+          <button type="button" data-currency="EUR">EUR</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- STAN OBECNY (cykl koniunkturalny) -->
+    <section id="view-cycle" class="view active">
+
+      <div class="card cycle-hero">
+        <div class="cycle-hero-text">
+          <span class="badge-mock">Dane ilustracyjne — patrz Ustawienia</span>
+          <h2 id="cycle-phase-name">–</h2>
+          <p id="cycle-phase-desc" class="cycle-desc">–</p>
+          <span class="muted" id="cycle-confidence">–</span>
+        </div>
+        <div class="cycle-wheel-wrap">
+          <div class="cycle-wheel" id="cycle-wheel">
+            <div class="cycle-wheel-pointer" id="cycle-wheel-pointer"></div>
+            <div class="cycle-wheel-center"></div>
+          </div>
+          <div class="cycle-wheel-labels" id="cycle-wheel-labels"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Kluczowe wskaźniki makroekonomiczne</h2>
+        </div>
+        <div class="indicators-grid" id="indicators-grid"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Klasy aktywów w obecnej fazie</h2>
+          <button class="link-btn" data-goto="assets">Zobacz szczegóły →</button>
+        </div>
+        <div class="asset-quick-row" id="asset-quick-row"></div>
+      </div>
+    </section>
+
+    <!-- KLASY AKTYWÓW -->
+    <section id="view-assets" class="view">
+      <div class="card">
+        <div class="card-header">
+          <h2>Wybierz klasę aktywów</h2>
+        </div>
+        <div class="asset-grid" id="asset-grid"></div>
+      </div>
+
+      <div id="asset-detail"></div>
+    </section>
+
+    <!-- AKTYWA (obserwowane) -->
+    <section id="view-watch" class="view">
+      <div class="card">
+        <div class="card-header"><h2>Dodaj aktywo do obserwowanych</h2></div>
+        <div class="asset-search-wrap">
+          <input id="watch-add-input" type="text" placeholder="Wpisz nazwę lub ticker, np. S&P 500, AAPL, WIG20..." autocomplete="off">
+          <div class="asset-suggestions" id="watch-suggestions"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2>Obserwowane aktywa</h2></div>
+        <div class="watch-table" id="watch-table">
+          <div class="watch-row watch-row-head">
+            <div class="watch-cell">Aktywo</div>
+            <div class="watch-cell">Aktualna cena</div>
+            <div class="watch-cell">14 dni</div>
+            <div class="watch-cell">30 dni</div>
+            <div class="watch-cell">365 dni</div>
+            <div class="watch-cell">5 lat</div>
+            <div class="watch-cell"></div>
+          </div>
+          <div id="watch-rows"></div>
+        </div>
+        <div id="watch-empty" class="empty-state hidden">
+          <p>Nie obserwujesz jeszcze żadnych aktywów — dodaj pierwsze powyżej.</p>
+        </div>
+      </div>
+      <p class="note">Ceny i historia notowań to dane przykładowe — patrz sekcja Ustawienia.</p>
+    </section>
+
+    <!-- ANALIZY RYNKOWE -->
+    <section id="view-market" class="view">
+      <div class="card">
+        <div class="card-header">
+          <h2>Analiza spółki / instrumentu</h2>
+        </div>
+        <div id="market-empty" class="empty-state">
+          <p>Wyszukaj instrument powyżej po nazwie (np. <strong>Apple</strong>) lub tickerze (<strong>AAPL</strong>, <strong>VWRA.L</strong>, <strong>GC=F</strong> — złoto), aby zobaczyć podgląd analizy.</p>
+        </div>
+        <div id="market-result" class="hidden">
+          <div class="market-header">
+            <div>
+              <h3 id="market-name">–</h3>
+              <span id="market-ticker" class="muted">–</span>
+            </div>
+            <div class="market-price-block">
+              <span id="market-price" class="market-price">–</span>
+              <span id="market-change" class="market-change">–</span>
+            </div>
+          </div>
+          <canvas id="chart-market" height="100"></canvas>
+          <div class="stats-grid">
+            <div class="stat-mini"><span>Otwarcie</span><strong id="m-open">–</strong></div>
+            <div class="stat-mini"><span>Max dnia</span><strong id="m-high">–</strong></div>
+            <div class="stat-mini"><span>Min dnia</span><strong id="m-low">–</strong></div>
+            <div class="stat-mini"><span>52-tyg. max</span><strong id="m-52h">–</strong></div>
+            <div class="stat-mini"><span>52-tyg. min</span><strong id="m-52l">–</strong></div>
+            <div class="stat-mini"><span>Kapitalizacja</span><strong id="m-cap">–</strong></div>
+          </div>
+        </div>
+      </div>
+      <p class="note">Źródło danych: docelowo Yahoo Finance / Google Finance (patrz sekcja Ustawienia — wymaga integracji przez backend).</p>
+    </section>
+
+    <!-- USTAWIENIA -->
+    <section id="view-settings" class="view">
+      <div class="card">
+        <div class="card-header">
+          <h2>Dane rynkowe — Twelve Data</h2>
+          <span class="verdict-badge" id="td-status-badge">–</span>
+        </div>
+        <p id="td-status-text" class="muted">–</p>
+        <div class="apikey-row">
+          <input type="password" id="td-apikey-input" placeholder="Klucz API Twelve Data">
+          <button class="btn btn-primary" id="td-apikey-save">Zapisz</button>
+          <button class="btn btn-secondary" id="td-apikey-clear">Usuń</button>
+        </div>
+        <p class="note">Darmowy klucz można założyć na <strong>twelvedata.com</strong> (plan darmowy: realne notowania i wyszukiwanie ~100 000 instrumentów z całego świata). Klucz zapisywany jest tylko lokalnie w tej przeglądarce.</p>
+        <p class="note">Uwaga: darmowy plan ma limit <strong>8 zapytań / minutę</strong>, a część nietypowych symboli (np. mniejsze zagraniczne giełdy) wymaga płatnego planu. Gdy dany instrument nie jest dostępny, aplikacja pokaże komunikat z powodu albo — jeśli mamy go w lokalnym katalogu — spadnie do danych przykładowych.</p>
+      </div>
+      <div class="card">
+        <div class="card-header"><h2>Dane makroekonomiczne (cykl koniunkturalny)</h2></div>
+        <p>Ocena fazy cyklu koniunkturalnego na stronie "Stan obecny" to wciąż <strong>materiał ilustracyjny</strong>. Docelowe źródła: krzywa dochodowości, inflacja, bezrobocie, PMI, polityka banków centralnych — np. FRED, Eurostat, GUS lub OECD.</p>
+      </div>
+      <div class="card">
+        <div class="card-header"><h2>Ocena klas aktywów</h2></div>
+        <p>Werdykty przy każdej klasie aktywów ("warto rozważyć", "zachować ostrożność" itd.) to materiał edukacyjny oparty na klasycznych, historycznie obserwowanych zależnościach między fazą cyklu koniunkturalnego a zachowaniem danej klasy aktywów — nie jest to rekomendacja inwestycyjna.</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/config.local.js"></script>
+<script src="js/live-data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
