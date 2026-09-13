@@ -38,6 +38,7 @@ const state = {
   watchRequestToken: 0,
   marketRequestToken: 0,
   syncCode: loadSyncCode(),
+  transactions: loadTransactions(),
 };
 
 // ---- Synchronizacja obserwowanych aktywów (Firebase) ----
@@ -76,6 +77,14 @@ const fmtMoney = (amount, nativeCurrency = "PLN") => {
 const fmtPct = (n) => {
   if (n === null || n === undefined || !isFinite(n)) return "—";
   return `${n > 0 ? "+" : ""}${n.toFixed(2)}%`;
+};
+
+// Formatuje wartość, która JEST JUŻ w walucie wybranej w przełączniku (np. wynik z
+// convertAmount) — w przeciwieństwie do fmtMoney, nie przelicza jej ponownie.
+const fmtDisplayCurrency = (value) => {
+  if (value === null || value === undefined || !isFinite(value)) return "—";
+  const maximumFractionDigits = Math.abs(value) >= 1000 ? 0 : 2;
+  return value.toLocaleString(CURRENCY_LOCALES[state.currency], { style: "currency", currency: state.currency, maximumFractionDigits });
 };
 
 function renderCurrencySwitch() {
@@ -346,6 +355,8 @@ async function renderWatchlistView() {
   state.watchCharts = {};
   rowsWrap.innerHTML = "";
 
+  const portfolioTotals = { invested: 0, value: 0, any: false };
+
   rows.forEach(({ ticker, quote, history }) => {
     if (!quote || quote.error) {
       const warn = document.createElement("div");
@@ -368,12 +379,42 @@ async function renderWatchlistView() {
     const isExpanded = state.expandedTickers.has(ticker);
     const safeId = cssSafeTicker(ticker);
 
+    const position = computePosition(ticker);
+    let positionSummaryHtml = "";
+    if (position) {
+      const currentValuePln = position.qty * quote.price * (FX_RATES_PLN[quote.currency] ?? FX_RATES_PLN[position.currency] ?? 1);
+      const costBasisPln = position.costBasis * (FX_RATES_PLN[position.currency] ?? 1);
+      const plPln = currentValuePln - costBasisPln;
+      const plPct = costBasisPln ? (plPln / costBasisPln) * 100 : null;
+      portfolioTotals.any = true;
+      portfolioTotals.invested += costBasisPln;
+      portfolioTotals.value += currentValuePln;
+
+      positionSummaryHtml = `
+        <div class="position-summary">
+          <div><span>Posiadasz</span><strong>${position.qty} szt.</strong></div>
+          <div><span>Śr. cena zakupu</span><strong>${fmtMoney(position.avgCost, position.currency)}</strong></div>
+          <div><span>Wartość obecna</span><strong>${fmtDisplayCurrency(convertAmount(currentValuePln, "PLN"))}</strong></div>
+          <div><span>Zysk / strata</span><strong class="${plPln >= 0 ? "pl-positive" : "pl-negative"}">${fmtDisplayCurrency(convertAmount(plPln, "PLN"))} (${fmtPct(plPct)})</strong></div>
+        </div>
+      `;
+    }
+
+    const txns = state.transactions[ticker] || [];
+    const txnListHtml = txns.map((t, i) => `
+      <div class="txn-item">
+        <span>${t.qty} szt. @ ${fmtMoney(t.price, t.currency)} · ${t.date}</span>
+        <button class="txn-remove" data-ticker="${ticker}" data-index="${i}" title="Usuń transakcję">✕</button>
+      </div>
+    `).join("");
+
     const group = document.createElement("div");
     group.innerHTML = `
       <div class="watch-row${isExpanded ? " expanded" : ""}" data-ticker="${ticker}">
         <div class="watch-cell watch-name">
           <strong>${quote.name}</strong>
           <span class="muted">${ticker}${quote.source === "mock" ? " · przykładowe" : ""}</span>
+          ${position ? `<span class="position-tag">Twoja pozycja: ${position.qty} szt.</span>` : ""}
         </div>
         <div class="watch-cell watch-price">${fmtMoney(quote.price, quote.currency)}</div>
         ${pctCell(pct14)}
@@ -385,8 +426,21 @@ async function renderWatchlistView() {
       <div class="watch-chart-wrap" ${isExpanded ? "" : "hidden"}>
         <canvas id="watch-chart-${safeId}" height="90"></canvas>
       </div>
+      <div class="position-wrap" ${isExpanded ? "" : "hidden"}>
+        ${positionSummaryHtml}
+        <div class="txn-list">${txnListHtml}</div>
+        <div class="txn-form">
+          <input type="number" class="txn-qty" placeholder="Ilość" step="any" min="0">
+          <input type="number" class="txn-price" placeholder="Cena zakupu (${quote.currency})" step="any" min="0">
+          <input type="date" class="txn-date">
+          <button class="btn btn-primary txn-add" data-ticker="${ticker}">+ Dodaj transakcję</button>
+        </div>
+      </div>
     `;
     rowsWrap.appendChild(group);
+
+    const dateInput = group.querySelector(".txn-date");
+    dateInput.value = new Date().toISOString().slice(0, 10);
 
     group.querySelector(".watch-row").addEventListener("click", (e) => {
       if (e.target.closest(".watch-remove")) return;
@@ -396,18 +450,57 @@ async function renderWatchlistView() {
       e.stopPropagation();
       removeFromWatchlist(ticker);
     });
+    group.querySelectorAll(".txn-remove").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        removeTransaction(ticker, parseInt(btn.dataset.index, 10));
+        renderWatchlistView();
+      });
+    });
+    group.querySelector(".txn-add").addEventListener("click", () => {
+      const qty = parseFloat(group.querySelector(".txn-qty").value);
+      const price = parseFloat(group.querySelector(".txn-price").value);
+      const date = group.querySelector(".txn-date").value || new Date().toISOString().slice(0, 10);
+      if (!qty || qty <= 0 || !price || price <= 0) return;
+      addTransaction(ticker, { qty, price, date, currency: quote.currency });
+      renderWatchlistView();
+    });
 
     if (isExpanded && series.length > 1) {
       renderWatchChart(ticker, series, quote.currency, safeId);
     }
   });
+
+  renderPortfolioSummary(portfolioTotals);
+}
+
+function renderPortfolioSummary(totals) {
+  const card = document.getElementById("portfolio-summary-card");
+  if (!totals.any) {
+    card.classList.add("hidden");
+    return;
+  }
+  card.classList.remove("hidden");
+  const pl = totals.value - totals.invested;
+  const plPct = totals.invested ? (pl / totals.invested) * 100 : null;
+  document.getElementById("pf-invested").textContent = fmtDisplayCurrency(convertAmount(totals.invested, "PLN"));
+  document.getElementById("pf-value").textContent = fmtDisplayCurrency(convertAmount(totals.value, "PLN"));
+  const plEl = document.getElementById("pf-pl");
+  plEl.textContent = `${fmtDisplayCurrency(convertAmount(pl, "PLN"))} (${fmtPct(plPct)})`;
+  plEl.className = pl >= 0 ? "pl-positive" : "pl-negative";
+}
+
+function tooltipDateTitle(items) {
+  if (!items.length) return "";
+  const d = new Date(items[0].label);
+  if (isNaN(d)) return items[0].label;
+  return d.toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" });
 }
 
 function renderWatchChart(ticker, series, nativeCurrency, safeId) {
   const canvas = document.getElementById(`watch-chart-${safeId}`);
   if (!canvas) return;
   const weekly = downsampleWeekly(series);
-  const labels = weekly.map((pt) => formatMonthYear(pt.date));
+  const labels = weekly.map((pt) => pt.date);
   const dataPoints = weekly.map((pt) => convertAmount(pt.close, nativeCurrency));
   const chart = new Chart(canvas, {
     type: "line",
@@ -419,15 +512,28 @@ function renderWatchChart(ticker, series, nativeCurrency, safeId) {
         backgroundColor: "rgba(47,111,237,0.08)",
         fill: true,
         pointRadius: 0,
+        pointHoverRadius: 4,
         borderWidth: 2,
         tension: 0.2,
       }],
     },
     options: {
       responsive: true,
-      plugins: { legend: { display: false } },
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: tooltipDateTitle,
+            label: (item) => fmtDisplayCurrency(item.parsed.y),
+          },
+        },
+      },
       scales: {
-        x: { ticks: { maxTicksLimit: 5, font: { size: 10 } }, grid: { display: false } },
+        x: {
+          ticks: { maxTicksLimit: 5, font: { size: 10 }, callback: function (value) { return formatMonthYear(this.getLabelForValue(value)); } },
+          grid: { display: false },
+        },
         y: { ticks: { font: { size: 10 } }, grid: { color: "#eef1f6" } },
       },
     },
@@ -523,12 +629,6 @@ function wireInstrumentSearch(inputEl, boxEl, onSelect) {
   });
 }
 
-const watchAddInput = document.getElementById("watch-add-input");
-wireInstrumentSearch(watchAddInput, document.getElementById("watch-suggestions"), (ticker) => {
-  addToWatchlist(ticker);
-  watchAddInput.value = "";
-});
-
 // ---- Analizy rynkowe ----
 let chartMarket;
 
@@ -571,6 +671,13 @@ async function renderMarketResult(ticker) {
   document.getElementById("m-52l").textContent = fmtMoney(quote.w52l, quote.currency);
   document.getElementById("m-cap").textContent = quote.cap || "—";
 
+  const addBtn = document.getElementById("market-add-watch");
+  addBtn.textContent = state.watchlist.includes(key) ? "✓ Obserwujesz" : "+ Dodaj do obserwowanych";
+  addBtn.onclick = () => {
+    addToWatchlist(key);
+    addBtn.textContent = "✓ Obserwujesz";
+  };
+
   const series = history.series || [];
   const recent = series.slice(-90);
   const ctx = document.getElementById("chart-market");
@@ -586,13 +693,23 @@ async function renderMarketResult(ticker) {
           borderColor: quote.changePct >= 0 ? "#16a34a" : "#dc2626",
           backgroundColor: "transparent",
           pointRadius: 0,
+          pointHoverRadius: 4,
           borderWidth: 2,
           tension: 0.25,
         }],
       },
       options: {
         responsive: true,
-        plugins: { legend: { display: false } },
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: tooltipDateTitle,
+              label: (item) => fmtDisplayCurrency(item.parsed.y),
+            },
+          },
+        },
         scales: { x: { display: false }, y: { display: false } },
       },
     });

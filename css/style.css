@@ -305,6 +305,8 @@ html, body {
   text-align: right;
 }
 
+#market-add-watch { margin-bottom: 14px; }
+
 .market-price {
   display: block;
   font-size: 24px;
@@ -776,7 +778,72 @@ html, body {
 
 .watch-chart-wrap {
   padding: 4px 8px 12px;
+}
+
+.position-wrap {
+  padding: 0 8px 16px;
   border-bottom: 1px solid var(--border);
+}
+
+.position-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.position-summary > div { display: flex; flex-direction: column; gap: 2px; }
+.position-summary span { font-size: 11px; color: var(--text-muted); }
+.position-summary strong { font-size: 14px; }
+
+.txn-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+
+.txn-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+
+.txn-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+.txn-remove:hover { color: var(--negative); }
+
+.txn-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.txn-form input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--text);
+  flex: 1 1 110px;
+  min-width: 0;
+}
+
+.txn-form input:focus { outline: none; border-color: var(--primary); }
+
+.position-tag {
+  display: block;
+  font-size: 11px;
+  color: var(--primary);
+  font-weight: 600;
+  margin-top: 1px;
 }
 
 .apikey-row {
@@ -893,4 +960,6 @@ html, body {
   .watch-row:not(.watch-row-head) .watch-cell:nth-child(5)::before { content: "1r "; color: var(--text-muted); font-weight: 400; }
   .watch-row:not(.watch-row-head) .watch-cell:nth-child(6)::before { content: "5l "; color: var(--text-muted); font-weight: 400; }
   .watch-remove { position: absolute; top: 14px; right: 6px; order: 7; }
+
+  .txn-form input { flex: 1 1 100%; }
 }

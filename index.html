@@ -112,16 +112,20 @@
 
     <!-- AKTYWA (obserwowane) -->
     <section id="view-watch" class="view">
-      <div class="card">
-        <div class="card-header"><h2>Dodaj aktywo do obserwowanych</h2></div>
-        <div class="asset-search-wrap">
-          <input id="watch-add-input" type="text" placeholder="Wpisz nazwę lub ticker, np. S&P 500, AAPL, WIG20..." autocomplete="off">
-          <div class="asset-suggestions" id="watch-suggestions"></div>
+      <div class="card hidden" id="portfolio-summary-card">
+        <div class="card-header"><h2>Moje portfolio</h2></div>
+        <div class="stats-grid">
+          <div class="stat-mini"><span>Zainwestowano</span><strong id="pf-invested">–</strong></div>
+          <div class="stat-mini"><span>Wartość obecna</span><strong id="pf-value">–</strong></div>
+          <div class="stat-mini"><span>Zysk / strata</span><strong id="pf-pl">–</strong></div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-header"><h2>Obserwowane aktywa</h2></div>
+        <div class="card-header">
+          <h2>Obserwowane aktywa</h2>
+          <span class="muted">Szukaj i dodawaj przez pole w prawym górnym rogu</span>
+        </div>
         <div class="watch-table" id="watch-table">
           <div class="watch-row watch-row-head">
             <div class="watch-cell">Aktywo</div>
@@ -161,6 +165,7 @@
               <span id="market-change" class="market-change">–</span>
             </div>
           </div>
+          <button class="btn btn-secondary" id="market-add-watch">+ Dodaj do obserwowanych</button>
           <canvas id="chart-market" height="100"></canvas>
           <div class="stats-grid">
             <div class="stat-mini"><span>Otwarcie</span><strong id="m-open">–</strong></div>
@@ -222,6 +227,7 @@
 <script src="js/firebase-config.js"></script>
 <script src="js/live-data.js"></script>
 <script src="js/sync.js"></script>
+<script src="js/portfolio.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
