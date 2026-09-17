@@ -9,6 +9,12 @@ const CYCLE_PHASES = [
   { id: "recession", name: "Recesja (kontrakcja)", angle: [270, 360], color: "#dc2626" },
 ];
 
+// Punktacja "wskaźnika cyklu koniunkturalnego" (mock/ilustracyjna): baza 50 pkt (neutralnie)
+// + wkład 5 wskaźników makro. Wyższy wynik = gospodarka "gorętsza" / silniejszy wzrost,
+// niższy = słabsza, bliżej recesji. Pasma: 0–20 Recesja, 20–45 Późny cykl, 45–70 Środek
+// cyklu, 70–100 Wczesny cykl. To metodologia edukacyjna, nie prognoza.
+const CYCLE_SCORE_BASE = 50;
+
 const CURRENT_CYCLE = {
   phaseId: "late",
   confidence: "Umiarkowana",
@@ -18,34 +24,93 @@ const CURRENT_CYCLE = {
       label: "Krzywa dochodowości (2Y–10Y)",
       value: "blisko zera / lekko odwrócona",
       trend: "warning",
+      points: -6,
       note: "Historycznie jeden z najbardziej wiarygodnych wyprzedzających sygnałów zbliżającego się spowolnienia.",
     },
     {
       label: "Inflacja (CPI r/r)",
       value: "powyżej celu, trend spadkowy",
       trend: "down",
-      note: "Presja cenowa słabnie, ale wciąż nie wróciła do celu banku centralnego.",
+      points: -2,
+      note: "Presja cenowa słabnie, ale wciąż nie wróciła do celu banku centralnego — lekko negatywny wkład, bo poprawa już w toku.",
     },
     {
       label: "Bezrobocie",
       value: "historycznie niskie, zaczyna rosnąć",
       trend: "up",
-      note: "Rynek pracy zwykle jako jeden z ostatnich wskaźników reaguje na spowolnienie.",
+      points: -4,
+      note: "Rynek pracy zwykle jako jeden z ostatnich wskaźników reaguje na spowolnienie — początek wzrostu to wczesne ostrzeżenie.",
     },
     {
       label: "PMI przemysłowy",
       value: "poniżej 50 pkt (kontrakcja)",
       trend: "down",
-      note: "Sektor przemysłowy sygnalizuje spadek aktywności — klasyczna cecha późnego cyklu.",
+      points: -8,
+      note: "Sektor przemysłowy sygnalizuje spadek aktywności — klasyczna cecha późnego cyklu, największy pojedynczy wkład do wyniku.",
     },
     {
       label: "Polityka banku centralnego",
       value: "restrykcyjna, sygnały pierwszych obniżek",
       trend: "neutral",
-      note: "Stopy pozostają wysokie, ale rynek zaczyna wyceniać zbliżający się zwrot w polityce.",
+      points: -3,
+      note: "Stopy pozostają wysokie, ale rynek zaczyna wyceniać zbliżający się zwrot w polityce — część negatywnego wpływu już złagodzona.",
     },
   ],
 };
+
+CURRENT_CYCLE.score = CYCLE_SCORE_BASE + CURRENT_CYCLE.indicators.reduce((sum, ind) => sum + ind.points, 0);
+
+const CYCLE_SCORE_BANDS = [
+  { min: 0, max: 20, label: "Recesja", color: "#dc2626" },
+  { min: 20, max: 45, label: "Późny cykl", color: "#f59e0b" },
+  { min: 45, max: 70, label: "Środek cyklu", color: "#16a34a" },
+  { min: 70, max: 101, label: "Wczesny cykl", color: "#3b82f6" },
+];
+
+function cycleScoreBand(score) {
+  return CYCLE_SCORE_BANDS.find((b) => score >= b.min && score < b.max) || CYCLE_SCORE_BANDS[0];
+}
+
+// Punkty kotwiczące 5-letniej historii wskaźnika (mock/ilustracyjna, ale ułożona tak,
+// by opowiadać spójną historię: ożywienie po 2021, boom 2022, potem stopniowe chłodzenie
+// wraz z podwyżkami stóp aż do dzisiejszej późnej fazy cyklu).
+const CYCLE_SCORE_ANCHORS = [
+  { date: "2021-09-17", score: 38 },
+  { date: "2022-01-15", score: 55 },
+  { date: "2022-06-15", score: 68 },
+  { date: "2022-10-15", score: 65 },
+  { date: "2023-03-15", score: 58 },
+  { date: "2023-09-15", score: 50 },
+  { date: "2024-03-15", score: 44 },
+  { date: "2024-09-15", score: 40 },
+  { date: "2025-03-15", score: 35 },
+  { date: "2025-09-15", score: 31 },
+  { date: "2026-03-15", score: 29 },
+  { date: "2026-09-17", score: CURRENT_CYCLE.score },
+];
+
+function getCycleScoreHistory() {
+  const rng = mulberry32(hashString("cycle-score-history"));
+  const points = [];
+  for (let i = 0; i < CYCLE_SCORE_ANCHORS.length - 1; i++) {
+    const a = CYCLE_SCORE_ANCHORS[i];
+    const b = CYCLE_SCORE_ANCHORS[i + 1];
+    const startDate = new Date(a.date);
+    const endDate = new Date(b.date);
+    const totalDays = (endDate - startDate) / 86400000;
+    const steps = Math.max(1, Math.round(totalDays / 30));
+    for (let s = 0; s < steps; s++) {
+      const t = s / steps;
+      const d = new Date(startDate.getTime() + t * (endDate - startDate));
+      const base = a.score + (b.score - a.score) * t;
+      const noise = (rng() - 0.5) * 3;
+      points.push({ date: d.toISOString().slice(0, 10), score: Math.round(Math.max(0, Math.min(100, base + noise))) });
+    }
+  }
+  const last = CYCLE_SCORE_ANCHORS[CYCLE_SCORE_ANCHORS.length - 1];
+  points.push({ date: last.date, score: last.score });
+  return points;
+}
 
 const ASSET_CLASSES = [
   {
@@ -55,15 +120,32 @@ const ASSET_CLASSES = [
     tagline: "Udział we wzroście gospodarki i zyskach spółek — z rosnącą selektywnością w późnym cyklu.",
     verdict: "Selektywnie / ostrożnie",
     verdictLevel: "warning",
+    score: 48,
+    scoreBreakdown: [
+      { label: "Baza", points: 50 },
+      { label: "Dopasowanie do obecnej fazy cyklu (późny cykl)", points: -8 },
+      { label: "Trend / moment rynkowy", points: 6 },
+    ],
     phaseTable: {
       early: "Silne — zwykle najlepsza faza dla akcji",
       mid: "Dobre — szeroki, stabilny wzrost",
       late: "Selektywne — jakość i wartość górują nad wzrostem",
       recession: "Słabe — presja na zyski i wyceny",
     },
+    yearByYear: {
+      range: "2006–2012 (pełen cykl: szczyt hossy → kryzys finansowy → odbudowa)",
+      years: [
+        { year: 2006, note: "Rynek rośnie, gospodarka silna, ceny nieruchomości na szczycie." },
+        { year: 2007, note: "Szczyt hossy (październik), pierwsze pęknięcia na rynku kredytów subprime." },
+        { year: 2008, note: "Krach — główne indeksy spadają o 35–50%, upadek Lehman Brothers." },
+        { year: 2009, note: "Dołek w marcu, potem gwałtowne odbicie napędzane luzowaniem Fed." },
+        { year: 2010, note: "Kontynuacja odbicia, ale nerwowo — kryzys zadłużenia w Europie." },
+        { year: 2011, note: "Wysoka zmienność, obniżka ratingu USA, spadki w sierpniu." },
+        { year: 2012, note: "Stabilny wzrost, rynek odzyskuje przedkryzysowe szczyty." },
+      ],
+    },
     analogs: [
       { period: "1999–2000 (szczyt dot-com)", text: "Rynek rósł napędzany wąską grupą spółek technologicznych przy rozciągniętych wycenach. Po szczycie nastąpiła wieloletnia, głęboka korekta w segmencie wzrostowym." },
-      { period: "2006–2007 (przed kryzysem finansowym)", text: "Indeksy piły się na nowe szczyty mimo pogarszających się fundamentów sektora nieruchomości i kredytowego — aż do gwałtownego załamania w 2008 r." },
       { period: "2018–2019", text: "Fed podnosił stopy, wzrost gospodarczy zwalniał, a rynek pozostawał we wzrostowym trendzie, ale z wyraźnie większą zmiennością i okresowymi głębokimi korektami." },
     ],
     pros: [
@@ -86,15 +168,32 @@ const ASSET_CLASSES = [
     tagline: "Stabilny dochód odsetkowy i naturalna przeciwwaga dla akcji — zyskują na atrakcyjności pod koniec cyklu.",
     verdict: "Warto rozważyć (budowa pozycji)",
     verdictLevel: "positive",
+    score: 74,
+    scoreBreakdown: [
+      { label: "Baza", points: 50 },
+      { label: "Dopasowanie do obecnej fazy cyklu (późny cykl)", points: 18 },
+      { label: "Trend / moment rynkowy", points: 6 },
+    ],
     phaseTable: {
       early: "Neutralne — stopy zwykle jeszcze niskie, ale mogą zacząć rosnąć",
       mid: "Neutralne — rentowności rosną wraz z ekspansją",
       late: "Dobre — atrakcyjne rentowności, budowanie pozycji przed cięciami stóp",
       recession: "Silne — ceny rosną, gdy bank centralny tnie stopy",
     },
+    yearByYear: {
+      range: "2006–2012 (pełen cykl: podwyżki stóp → kryzys → luzowanie)",
+      years: [
+        { year: 2006, note: "Rentowności rosną wraz z podwyżkami stóp Fed." },
+        { year: 2007, note: "Rentowności zaczynają spadać — rynek wyczuwa nadchodzące spowolnienie." },
+        { year: 2008, note: "Gwałtowny rajd obligacji skarbowych — klasyczna „ucieczka do bezpieczeństwa”." },
+        { year: 2009, note: "Rentowności przy historycznych minimach, potem lekkie odbicie." },
+        { year: 2010, note: "Stabilnie, program QE1 wspiera ceny obligacji." },
+        { year: 2011, note: "Kolejny rajd na fali kryzysu w Europie, rentowność 10-letnich obligacji USA spada poniżej 2%." },
+        { year: 2012, note: "Rentowności przy rekordowych minimach, ogłoszenie programu QE3." },
+      ],
+    },
     analogs: [
       { period: "2000–2001", text: "Obligacje skarbowe wyraźnie zyskiwały, gdy Fed rozpoczął cykl obniżek stóp po pęknięciu bańki internetowej." },
-      { period: "2007", text: "Obligacje skarbowe pełniły rolę bezpiecznej przystani — ceny rosły w miarę narastania napięć na rynku kredytowym, jeszcze przed pełnym wybuchem kryzysu." },
     ],
     pros: [
       "Przewidywalny dochód odsetkowy",
@@ -116,15 +215,32 @@ const ASSET_CLASSES = [
     tagline: "Polityka banków centralnych i przepływy kapitału decydują o sile walut — kluczowy wskaźnik wyprzedzający dla innych klas aktywów.",
     verdict: "Obserwuj rozbieżności polityk banków centralnych",
     verdictLevel: "neutral",
+    score: 55,
+    scoreBreakdown: [
+      { label: "Baza", points: 50 },
+      { label: "Dopasowanie do obecnej fazy cyklu (późny cykl)", points: 3 },
+      { label: "Trend / moment rynkowy", points: 2 },
+    ],
     phaseTable: {
       early: "Waluty ryzykowne (surowcowe, rynków wschodzących) zwykle zyskują",
       mid: "Względnie stabilnie, zależnie od tempa zacieśniania polityki",
       late: "Rozbieżności polityk banków centralnych, waluta rezerwowa często silna",
       recession: "Waluty bezpieczne (USD, CHF, JPY) zwykle zyskują najbardziej",
     },
+    yearByYear: {
+      range: "2006–2012 (dolar w pełnym cyklu koniunkturalnym)",
+      years: [
+        { year: 2006, note: "Dolar słaby, kapitał płynie na rynki wschodzące w poszukiwaniu wzrostu." },
+        { year: 2007, note: "Dalsze osłabienie USD, Fed zaczyna ciąć stopy procentowe." },
+        { year: 2008, note: "Gwałtowne umocnienie USD w szczycie paniki — rola bezpiecznej przystani." },
+        { year: 2009, note: "USD słabnie, gdy panika mija i kapitał wraca do aktywów ryzykownych." },
+        { year: 2010, note: "Kryzys zadłużenia w Europie ponownie wzmacnia USD względem EUR." },
+        { year: 2011, note: "Wysoka zmienność walutowa, EUR pod presją kryzysu zadłużenia." },
+        { year: 2012, note: "EBC („whatever it takes” Draghiego) stabilizuje EUR." },
+      ],
+    },
     analogs: [
       { period: "2000–2001", text: "Dolar amerykański pozostawał silny aż do szczytu cyklu, po czym osłabł wraz z obniżkami stóp w reakcji na spowolnienie." },
-      { period: "2007–2008", text: "Dolar początkowo słabł przy niższych stopach w USA, by następnie gwałtownie umocnić się jako globalna bezpieczna przystań w szczycie kryzysu finansowego." },
     ],
     pros: [
       "Waluty defensywne mogą chronić kapitał w okresach niepewności",
@@ -146,14 +262,31 @@ const ASSET_CLASSES = [
     tagline: "Klasyczne zabezpieczenie przed niepewnością i spadkiem realnych stóp procentowych.",
     verdict: "Warto rozważyć jako zabezpieczenie",
     verdictLevel: "positive",
+    score: 71,
+    scoreBreakdown: [
+      { label: "Baza", points: 50 },
+      { label: "Dopasowanie do obecnej fazy cyklu (późny cykl)", points: 15 },
+      { label: "Trend / moment rynkowy", points: 6 },
+    ],
     phaseTable: {
       early: "Neutralne / słabsze — kapitał wraca do aktywów ryzykownych",
       mid: "Neutralne",
       late: "Dobre — rośnie popyt na zabezpieczenie",
       recession: "Silne — spadek realnych stóp i ucieczka do bezpiecznych aktywów",
     },
+    yearByYear: {
+      range: "2006–2012 (złoto w trakcie i po kryzysie finansowym)",
+      years: [
+        { year: 2006, note: "Złoto rośnie wraz z osłabieniem dolara." },
+        { year: 2007, note: "Kontynuacja wzrostów, narastający niepokój o rynek kredytowy." },
+        { year: 2008, note: "Początkowo spadek — panika wymusza sprzedaż wszystkiego dla płynności, potem odbicie." },
+        { year: 2009, note: "Silny wzrost — luzowanie ilościowe (QE) i obawy o dług napędzają popyt." },
+        { year: 2010, note: "Kontynuacja hossy, kolejne rekordy cenowe." },
+        { year: 2011, note: "Szczyt ok. 1900 USD/uncję (sierpień), potem korekta." },
+        { year: 2012, note: "Konsolidacja na wysokich poziomach cenowych." },
+      ],
+    },
     analogs: [
-      { period: "2007–2012", text: "Złoto weszło w wieloletni silny trend wzrostowy w trakcie i po globalnym kryzysie finansowym, napędzane spadkiem realnych stóp i luzowaniem monetarnym." },
       { period: "2000–2001", text: "Po pęknięciu bańki dot-com złoto rozpoczęło wieloletnią hossę trwającą przez większość dekady." },
     ],
     pros: [
@@ -176,14 +309,31 @@ const ASSET_CLASSES = [
     tagline: "Bezpośrednia ekspozycja na globalny popyt i podaż — zwykle szczyt osiągają najpóźniej w cyklu.",
     verdict: "Mieszanie / selektywnie",
     verdictLevel: "warning",
+    score: 44,
+    scoreBreakdown: [
+      { label: "Baza", points: 50 },
+      { label: "Dopasowanie do obecnej fazy cyklu (późny cykl)", points: -10 },
+      { label: "Trend / moment rynkowy", points: 4 },
+    ],
     phaseTable: {
       early: "Odbicie od dołka cyklu",
       mid: "Silne — rosnący popyt przemysłowy",
       late: "Szczyt cenowy, wysoka zmienność",
       recession: "Słabe — załamanie popytu",
     },
+    yearByYear: {
+      range: "2006–2012 (surowce: boom, szczyt, załamanie, odbudowa)",
+      years: [
+        { year: 2006, note: "Wysokie ceny energii, silny globalny popyt przemysłowy." },
+        { year: 2007, note: "Dalszy wzrost cen ropy i surowców przemysłowych." },
+        { year: 2008, note: "Ropa naftowa osiąga szczyt ok. 147 USD/baryłkę (lipiec), potem załamanie do ok. 35 USD (grudzień)." },
+        { year: 2009, note: "Dołek na początku roku, potem stopniowe odbicie wraz z ożywieniem gospodarczym." },
+        { year: 2010, note: "Wzrost napędzany rosnącym popytem z Chin." },
+        { year: 2011, note: "Kontynuacja hossy surowcowej, szczyty cen wielu surowców." },
+        { year: 2012, note: "Stabilizacja — spowolnienie wzrostu w Chinach zaczyna ciążyć cenom." },
+      ],
+    },
     analogs: [
-      { period: "2007–2008", text: "Ceny ropy naftowej osiągnęły historyczny szczyt (ok. 147 USD/baryłkę) tuż przed wybuchem globalnej recesji, po czym nastąpił gwałtowny spadek." },
       { period: "2021–2022", text: "Silny wzrost cen surowców w warunkach wysokiej inflacji, a następnie wyraźna korekta wraz ze spowolnieniem globalnego popytu." },
     ],
     pros: [
@@ -205,14 +355,31 @@ const ASSET_CLASSES = [
     tagline: "Dochód z czynszów i ekspozycja na rynek nieruchomości — silnie wrażliwe na poziom stóp procentowych.",
     verdict: "Zachować ostrożność",
     verdictLevel: "negative",
+    score: 33,
+    scoreBreakdown: [
+      { label: "Baza", points: 50 },
+      { label: "Dopasowanie do obecnej fazy cyklu (późny cykl)", points: -20 },
+      { label: "Trend / moment rynkowy", points: 3 },
+    ],
     phaseTable: {
       early: "Stabilizacja i powolne odbicie",
       mid: "Silne — rosnący popyt i czynsze",
       late: "Słabnące — rosnące koszty finansowania",
       recession: "Słabe — spadek popytu i wycen",
     },
+    yearByYear: {
+      range: "2006–2012 (nieruchomości: szczyt boomu, krach, odbudowa)",
+      years: [
+        { year: 2006, note: "Szczyt boomu mieszkaniowego w USA." },
+        { year: 2007, note: "Pierwsze pęknięcia — rosnąca liczba niespłacanych kredytów subprime." },
+        { year: 2008, note: "Załamanie rynku nieruchomości, REIT-y spadają o ponad 50%." },
+        { year: 2009, note: "Dalsze spadki na początku roku, potem dołek i stabilizacja." },
+        { year: 2010, note: "Powolna odbudowa, ale rynek mieszkaniowy wciąż słaby." },
+        { year: 2011, note: "REIT-y odbijają szybciej niż rynek nieruchomości fizycznych." },
+        { year: 2012, note: "Kontynuacja odbudowy, niskie stopy procentowe wspierają wyceny." },
+      ],
+    },
     analogs: [
-      { period: "2006–2008", text: "Szczyt boomu na rynku nieruchomości w USA, po którym nastąpił głęboki krach będący jedną z głównych przyczyn globalnego kryzysu finansowego." },
       { period: "2018–2019", text: "REIT-y znalazły się pod presją rosnących stóp procentowych, a następnie wyraźnie odbiły, gdy bank centralny zasygnalizował zwrot w polityce monetarnej." },
     ],
     pros: [

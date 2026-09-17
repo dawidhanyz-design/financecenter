@@ -151,8 +151,72 @@ function renderCycleView() {
   document.getElementById("cycle-confidence").textContent = `Pewność oceny: ${CURRENT_CYCLE.confidence}`;
 
   renderCycleWheel(phase);
+  renderCycleScoreCard();
   renderIndicators();
   renderAssetQuickRow();
+}
+
+let chartCycleScore;
+
+function renderCycleScoreCard() {
+  const score = CURRENT_CYCLE.score;
+  const band = cycleScoreBand(score);
+
+  document.getElementById("cycle-score-value").textContent = score;
+  document.getElementById("cycle-score-value").style.color = band.color;
+  const bandBadge = document.getElementById("cycle-score-band");
+  bandBadge.textContent = band.label;
+  bandBadge.className = `verdict-badge verdict-${band.label === "Recesja" ? "negative" : band.label === "Wczesny cykl" ? "positive" : band.label === "Środek cyklu" ? "positive" : "warning"}`;
+
+  const listEl = document.getElementById("score-breakdown-list");
+  listEl.innerHTML = `
+    <div class="score-row"><span>Baza (poziom neutralny)</span><span class="score-row-points">${CYCLE_SCORE_BASE}</span></div>
+    ${CURRENT_CYCLE.indicators.map((ind) => `
+      <div class="score-row">
+        <span>${ind.label}</span>
+        <span class="score-row-points ${ind.points >= 0 ? "pl-positive" : "pl-negative"}">${ind.points > 0 ? "+" : ""}${ind.points}</span>
+      </div>
+    `).join("")}
+  `;
+  document.getElementById("score-total-value").textContent = `${score} / 100 — ${band.label}`;
+
+  const history = getCycleScoreHistory();
+  const monthly = history.filter((_, i) => i % 4 === 0 || i === history.length - 1);
+  const ctx = document.getElementById("chart-cycle-score");
+  if (chartCycleScore) chartCycleScore.destroy();
+  chartCycleScore = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: monthly.map((pt) => pt.date),
+      datasets: [{
+        data: monthly.map((pt) => pt.score),
+        borderColor: "#2f6fed",
+        backgroundColor: "rgba(47,111,237,0.08)",
+        fill: true,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        borderWidth: 2,
+        tension: 0.3,
+      }],
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: tooltipDateTitle,
+            label: (item) => `Wynik: ${item.parsed.y}/100 (${cycleScoreBand(item.parsed.y).label})`,
+          },
+        },
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 7, font: { size: 10 }, callback: function (value) { return formatMonthYear(this.getLabelForValue(value)); } }, grid: { display: false } },
+        y: { min: 0, max: 100, ticks: { font: { size: 10 }, stepSize: 25 }, grid: { color: "#eef1f6" } },
+      },
+    },
+  });
 }
 
 function renderCycleWheel(phase) {
@@ -185,7 +249,10 @@ function renderIndicators() {
     const div = document.createElement("div");
     div.className = "indicator-card";
     div.innerHTML = `
-      <span class="indicator-label">${ind.label}</span>
+      <span class="indicator-label-row">
+        <span class="indicator-label">${ind.label}</span>
+        <span class="indicator-points ${ind.points >= 0 ? "pl-positive" : "pl-negative"}">${ind.points > 0 ? "+" : ""}${ind.points} pkt</span>
+      </span>
       <span class="indicator-value trend-${ind.trend}">${ind.value}</span>
       <span class="indicator-note">${ind.note}</span>
     `;
@@ -219,7 +286,10 @@ function renderAssetsView() {
     const btn = document.createElement("button");
     btn.className = `asset-card${a.id === state.selectedAssetId ? " selected" : ""}`;
     btn.innerHTML = `
-      <div class="asset-card-icon">${a.icon}</div>
+      <div class="asset-card-top">
+        <div class="asset-card-icon">${a.icon}</div>
+        <span class="asset-card-score" style="color:${cycleScoreBand(a.score).color}">${a.score}</span>
+      </div>
       <div class="asset-card-name">${a.name}</div>
       <div class="asset-card-tagline">${a.tagline}</div>
       <span class="verdict-badge verdict-${a.verdictLevel}">${a.verdict}</span>
@@ -266,7 +336,44 @@ function renderAssetDetail(id) {
     </div>
 
     <div class="card">
-      <div class="card-header"><h2>Jak zachowywało się to aktywo w podobnych okresach cyklu</h2></div>
+      <div class="card-header"><h2>Ocena punktowa (gdzie na rynku jest ta klasa aktywów)</h2></div>
+      <div class="score-hero">
+        <div class="score-hero-number">
+          <span class="score-value" style="color:${cycleScoreBand(a.score).color}">${a.score}</span>
+          <span class="score-max">/100</span>
+        </div>
+        <div class="score-hero-meta">
+          <span class="verdict-badge verdict-${a.verdictLevel}">${a.verdict}</span>
+          <p class="score-hero-note">Wynik = baza neutralna (50 pkt) + dopasowanie do obecnej fazy cyklu + bieżący trend/moment rynkowy.</p>
+        </div>
+      </div>
+      <div class="score-breakdown">
+        <div id="score-breakdown-${a.id}">
+          ${a.scoreBreakdown.map((row) => `
+            <div class="score-row">
+              <span>${row.label}</span>
+              <span class="score-row-points ${row.points >= 0 ? "pl-positive" : "pl-negative"}">${row.points > 0 ? "+" : ""}${row.points}</span>
+            </div>
+          `).join("")}
+        </div>
+        <div class="score-total-row"><span>Wynik końcowy</span><strong>${a.score} / 100</strong></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h2>Rok po roku: ${a.yearByYear.range}</h2></div>
+      <div class="year-table">
+        ${a.yearByYear.years.map((y) => `
+          <div class="year-row">
+            <div class="year-badge">${y.year}</div>
+            <div class="year-note">${y.note}</div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h2>Inne historyczne analogie</h2></div>
       ${a.analogs.map((an) => `
         <div class="analog-item">
           <div class="analog-period">${an.period}</div>

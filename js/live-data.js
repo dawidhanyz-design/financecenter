@@ -38,16 +38,77 @@ async function tdFetch(path, params) {
   return json;
 }
 
-async function tdSearch(query) {
-  if (!query.trim()) return [];
-  const json = await tdFetch("/symbol_search", { symbol: query, outputsize: 8 });
-  return (json.data || []).slice(0, 8).map((d) => ({
+function mapSearchResult(d) {
+  return {
     ticker: d.symbol,
     name: d.instrument_name,
     exchange: d.exchange,
     type: d.instrument_type,
     currency: d.currency,
-  }));
+  };
+}
+
+// Nazwa/skrót popularnych kryptowalut -> symbol pary z Twelve Data. Zwykłe wyszukiwanie
+// tekstowe ("bitcoin", "BTC") zwykle trafia na ETF-y/spółki o tym samym skrócie zamiast
+// bezpośredniego kursu krypto — ta mapa pozwala celować od razu w "SYMBOL/USD".
+const CRYPTO_NAME_TO_SYMBOL = {
+  bitcoin: "BTC", btc: "BTC",
+  ethereum: "ETH", eth: "ETH", ether: "ETH",
+  solana: "SOL", sol: "SOL",
+  ripple: "XRP", xrp: "XRP",
+  cardano: "ADA", ada: "ADA",
+  dogecoin: "DOGE", doge: "DOGE",
+  polkadot: "DOT", dot: "DOT",
+  litecoin: "LTC", ltc: "LTC",
+  chainlink: "LINK", link: "LINK",
+  polygon: "MATIC", matic: "MATIC",
+  avalanche: "AVAX", avax: "AVAX",
+  tron: "TRX", trx: "TRX",
+  "binance coin": "BNB", bnb: "BNB",
+  stellar: "XLM", xlm: "XLM",
+  monero: "XMR", xmr: "XMR",
+  uniswap: "UNI", uni: "UNI",
+  cosmos: "ATOM", atom: "ATOM",
+  filecoin: "FIL", fil: "FIL",
+  aptos: "APT", apt: "APT",
+  "shiba inu": "SHIB", shiba: "SHIB", shib: "SHIB",
+  toncoin: "TON", ton: "TON",
+  "near protocol": "NEAR", near: "NEAR",
+};
+
+function matchCryptoSymbol(query) {
+  const q = query.trim().toLowerCase();
+  if (CRYPTO_NAME_TO_SYMBOL[q]) return CRYPTO_NAME_TO_SYMBOL[q];
+  for (const [name, symbol] of Object.entries(CRYPTO_NAME_TO_SYMBOL)) {
+    if (name.length >= 3 && q.startsWith(name)) return symbol;
+  }
+  return null;
+}
+
+async function tdSearch(query) {
+  if (!query.trim()) return [];
+  const json = await tdFetch("/symbol_search", { symbol: query, outputsize: 8 });
+  let results = (json.data || []).map(mapSearchResult);
+
+  // Doszukaj bezpośredniej pary krypto (np. BTC/USD), jeśli zwykłe wyniki jej nie zawierają —
+  // żeby "bitcoin" pokazywał kurs BTC, a nie ETF-y śledzące bitcoina.
+  const hasCrypto = results.some((r) => r.type === "Digital Currency");
+  const cryptoSymbol = matchCryptoSymbol(query);
+  if (!hasCrypto && cryptoSymbol) {
+    try {
+      const cryptoJson = await tdFetch("/symbol_search", { symbol: `${cryptoSymbol}/USD`, outputsize: 3 });
+      const cryptoResults = (cryptoJson.data || [])
+        .filter((d) => d.instrument_type === "Digital Currency")
+        .map(mapSearchResult);
+      results = [...cryptoResults, ...results];
+    } catch (e) { /* zostajemy przy zwykłych wynikach */ }
+  }
+
+  const seen = new Set();
+  return results
+    .sort((a, b) => (a.type === "Digital Currency" ? -1 : 0) - (b.type === "Digital Currency" ? -1 : 0))
+    .filter((r) => (seen.has(r.ticker) ? false : (seen.add(r.ticker), true)))
+    .slice(0, 8);
 }
 
 const quoteCache = new Map();
