@@ -14,6 +14,7 @@ const CYCLE_PHASES = [
 // niższy = słabsza, bliżej recesji. Pasma: 0–20 Recesja, 20–45 Późny cykl, 45–70 Środek
 // cyklu, 70–100 Wczesny cykl. To metodologia edukacyjna, nie prognoza.
 const CYCLE_SCORE_BASE = 50;
+const CYCLE_SCORE_BASE_EXPLANATION = "Wynik zaczyna się od poziomu neutralnego 50/100 — punktu, w którym żaden z pięciu wskaźników nie wskazywałby ani na przegrzanie, ani na osłabienie gospodarki. To umowny środek skali 0–100, a nie realny pomiar: od tej bazy odejmujemy lub dodajemy punkty za każdy wskaźnik, zależnie od tego, czy jego aktualny odczyt sprzyja wzrostowi, czy przed nim ostrzega. Dzięki temu zarówno mocno pozytywne, jak i mocno negatywne środowisko makro mają gdzie się zmieścić na skali.";
 
 const CURRENT_CYCLE = {
   phaseId: "late",
@@ -26,6 +27,7 @@ const CURRENT_CYCLE = {
       trend: "warning",
       points: -6,
       note: "Historycznie jeden z najbardziej wiarygodnych wyprzedzających sygnałów zbliżającego się spowolnienia.",
+      explainer: "Różnica między rentownością obligacji skarbowych 10-letnich i 2-letnich. Dodatnia i stroma krzywa = rynek oczekuje zdrowego wzrostu. Gdy spada do zera lub się odwraca (krótkoterminowe rentowności wyższe niż długoterminowe), inwestorzy oczekują spowolnienia lub przyszłych cięć stóp. Punktacja: od +10 (stroma, zdrowa) do -12 (głęboko odwrócona).",
     },
     {
       label: "Inflacja (CPI r/r)",
@@ -33,6 +35,7 @@ const CURRENT_CYCLE = {
       trend: "down",
       points: -2,
       note: "Presja cenowa słabnie, ale wciąż nie wróciła do celu banku centralnego — lekko negatywny wkład, bo poprawa już w toku.",
+      explainer: "Roczna zmiana wskaźnika cen konsumenckich (CPI), oceniana względem celu banku centralnego (zwykle ok. 2%) oraz kierunku zmian. Inflacja powyżej celu obniża wynik, bo ogranicza pole do luzowania polityki; zbliżanie się do celu go podnosi. Punktacja: od +8 (blisko celu, stabilna) do -10 (wysoka i rosnąca).",
     },
     {
       label: "Bezrobocie",
@@ -40,6 +43,7 @@ const CURRENT_CYCLE = {
       trend: "up",
       points: -4,
       note: "Rynek pracy zwykle jako jeden z ostatnich wskaźników reaguje na spowolnienie — początek wzrostu to wczesne ostrzeżenie.",
+      explainer: "Stopa bezrobocia i jej kierunek względem niedawnych minimów. Rynek pracy reaguje na spowolnienie jako jeden z ostatnich wskaźników, ale gdy już zaczyna się pogarszać, jest to sygnał bardzo wiarygodny. Punktacja: od +8 (spada lub stabilnie nisko) do -12 (wyraźnie rośnie).",
     },
     {
       label: "PMI przemysłowy",
@@ -47,6 +51,7 @@ const CURRENT_CYCLE = {
       trend: "down",
       points: -8,
       note: "Sektor przemysłowy sygnalizuje spadek aktywności — klasyczna cecha późnego cyklu, największy pojedynczy wkład do wyniku.",
+      explainer: "Purchasing Managers' Index — ankietowy wskaźnik nastrojów wśród menedżerów zakupów w przemyśle, publikowany co miesiąc. Wartość powyżej 50 pkt = ekspansja aktywności, poniżej 50 = kontrakcja. To jeden z najbardziej aktualnych wskaźników koniunktury, dlatego ma największą wagę w tym modelu. Punktacja: od +12 (wyraźnie powyżej 50) do -15 (głęboko poniżej 50).",
     },
     {
       label: "Polityka banku centralnego",
@@ -54,11 +59,29 @@ const CURRENT_CYCLE = {
       trend: "neutral",
       points: -3,
       note: "Stopy pozostają wysokie, ale rynek zaczyna wyceniać zbliżający się zwrot w polityce — część negatywnego wpływu już złagodzona.",
+      explainer: "Ocena, czy aktualne nastawienie banku centralnego (poziom stóp względem neutralnego, kierunek zmian, komunikacja) sprzyja wzrostowi, czy go hamuje. Polityka restrykcyjna (wysokie stopy, zacieśnianie) obniża wynik, łagodna (cięcia stóp) go podnosi. Punktacja: od +10 (wyraźnie łagodna) do -10 (mocno restrykcyjna).",
     },
   ],
 };
 
 CURRENT_CYCLE.score = CYCLE_SCORE_BASE + CURRENT_CYCLE.indicators.reduce((sum, ind) => sum + ind.points, 0);
+
+// "Dane aktualne na" — symulacja codziennej aktualizacji o 8:00. Dane są nadal statyczne/
+// ilustracyjne (patrz Ustawienia), ale ta etykieta pokazuje, na jaką godzinę są "ważne" —
+// realna integracja podmieniłaby też same liczby o tej porze.
+function lastDataRefresh() {
+  const now = new Date();
+  const refresh = new Date(now);
+  refresh.setHours(8, 0, 0, 0);
+  if (now < refresh) refresh.setDate(refresh.getDate() - 1);
+  return refresh;
+}
+
+function formatDataRefresh() {
+  const d = lastDataRefresh();
+  const dateStr = d.toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" });
+  return `${dateStr}, 08:00`;
+}
 
 const CYCLE_SCORE_BANDS = [
   { min: 0, max: 20, label: "Recesja", color: "#dc2626" },
@@ -126,6 +149,7 @@ const ASSET_CLASSES = [
       { label: "Dopasowanie do obecnej fazy cyklu (późny cykl)", points: -8 },
       { label: "Trend / moment rynkowy", points: 6 },
     ],
+    rationale: "W późnej fazie cyklu akcje potrafią jeszcze rosnąć, ale coraz węższą grupą liderów — to wzorzec znany z 1999–2000, 2007 i 2018–2019. Spadające PMI i spłaszczająca się krzywa dochodowości historycznie poprzedzały korekty z wyprzedzeniem 6–18 miesięcy, więc ryzyko pogorszenia wycen rośnie. Jednocześnie rynek pracy jest wciąż mocny, a zyski spółek nie załamały się, co nie uzasadnia całkowitego wycofania się z akcji. Dlatego rekomendacja to selektywność: przewaga spółek jakościowych, defensywnych i rozsądnie wycenionych nad wysoko wycenionym wzrostem, oraz akceptacja wyższej zmienności.",
     phaseTable: {
       early: "Silne — zwykle najlepsza faza dla akcji",
       mid: "Dobre — szeroki, stabilny wzrost",
@@ -174,6 +198,7 @@ const ASSET_CLASSES = [
       { label: "Dopasowanie do obecnej fazy cyklu (późny cykl)", points: 18 },
       { label: "Trend / moment rynkowy", points: 6 },
     ],
+    rationale: "Rentowności obligacji są dziś relatywnie atrakcyjne po serii podwyżek stóp, a historycznie właśnie w późnej fazie cyklu — tuż przed pierwszymi cięciami stóp — obligacje zaczynają zyskiwać na wartości (2000–2001, 2007). Restrykcyjna wciąż polityka banku centralnego oznacza, że nowe zakupy „łapią” wysoki kupon, a każde potwierdzenie spowolnienia (spadające PMI, rosnące bezrobocie) zwiększa prawdopodobieństwo obniżek stóp — co podnosi ceny już posiadanych obligacji. To klasyczny moment na stopniowe budowanie pozycji o dłuższym duration, choć ryzyko krótkoterminowej zmienności rentowności pozostaje.",
     phaseTable: {
       early: "Neutralne — stopy zwykle jeszcze niskie, ale mogą zacząć rosnąć",
       mid: "Neutralne — rentowności rosną wraz z ekspansją",
@@ -221,6 +246,7 @@ const ASSET_CLASSES = [
       { label: "Dopasowanie do obecnej fazy cyklu (późny cykl)", points: 3 },
       { label: "Trend / moment rynkowy", points: 2 },
     ],
+    rationale: "W późnym cyklu waluta kraju, który jako pierwszy zacznie luzować politykę, zwykle traci względem walut, których banki centralne pozostają bardziej restrykcyjne — kluczowe jest więc śledzenie tempa i kolejności cięć stóp między głównymi gospodarkami. Historia (2000–2001, 2007–2008) pokazuje, że dolar potrafi pozostać silny aż do samego szczytu cyklu, a potem gwałtownie zmienić kierunek, gdy zaczynają się obniżki. Brak jednoznacznego sygnału w żadną stronę na obecnym etapie uzasadnia postawę obserwacyjną, a nie aktywne pozycjonowanie walutowe.",
     phaseTable: {
       early: "Waluty ryzykowne (surowcowe, rynków wschodzących) zwykle zyskują",
       mid: "Względnie stabilnie, zależnie od tempa zacieśniania polityki",
@@ -268,6 +294,7 @@ const ASSET_CLASSES = [
       { label: "Dopasowanie do obecnej fazy cyklu (późny cykl)", points: 15 },
       { label: "Trend / moment rynkowy", points: 6 },
     ],
+    rationale: "Złoto i inne metale szlachetne historycznie zyskiwały, gdy realne stopy procentowe zaczynały spadać, a niepewność co do dalszego przebiegu cyklu rosła — dokładnie jak teraz. Sygnały pierwszych obniżek stóp i rosnące ryzyko spowolnienia zwiększają atrakcyjność metali jako aktywa nisko skorelowanego z akcjami. Dodatkowo metale szlachetne dobrze radziły sobie zarówno w końcówce poprzednich cykli (2007–2012), jak i w samej recesji, co czyni je jednym z niewielu aktywów „dobrych na obie strony” obecnej fazy.",
     phaseTable: {
       early: "Neutralne / słabsze — kapitał wraca do aktywów ryzykownych",
       mid: "Neutralne",
@@ -315,6 +342,7 @@ const ASSET_CLASSES = [
       { label: "Dopasowanie do obecnej fazy cyklu (późny cykl)", points: -10 },
       { label: "Trend / moment rynkowy", points: 4 },
     ],
+    rationale: "Surowce zwykle osiągają szczyt cen najpóźniej w cyklu — popyt przemysłowy jest jeszcze wysoki, ale zaczyna hamować wraz ze spadkiem PMI poniżej 50. Historia 2008 i 2022 pokazuje, że po takim szczycie potrafi nastąpić gwałtowna korekta, gdy spowolnienie zaczyna realnie ograniczać popyt. Uzasadnia to mieszaną, selektywną ocenę: część surowców (np. związanych z inwestycjami infrastrukturalnymi) może się jeszcze trzymać dobrze, ale ryzyko nagłego odwrócenia trendu jest podwyższone.",
     phaseTable: {
       early: "Odbicie od dołka cyklu",
       mid: "Silne — rosnący popyt przemysłowy",
@@ -361,6 +389,7 @@ const ASSET_CLASSES = [
       { label: "Dopasowanie do obecnej fazy cyklu (późny cykl)", points: -20 },
       { label: "Trend / moment rynkowy", points: 3 },
     ],
+    rationale: "Nieruchomości i REIT-y są jedną z klas aktywów najbardziej wrażliwych na poziom stóp procentowych, a te pozostają restrykcyjne, co podnosi koszty finansowania i obniża atrakcyjność nowych inwestycji. Historia 2006–2008 pokazuje najbardziej dotkliwy scenariusz — szczyt boomu mieszkaniowego tuż przed późną fazą cyklu, po którym nastąpił głęboki krach napędzający globalny kryzys finansowy. Rosnące bezrobocie i słabnący PMI to dodatkowe sygnały ryzyka dla popytu na powierzchnię komercyjną i mieszkaniową, stąd zalecana ostrożność mimo kuszącego dochodu z czynszów.",
     phaseTable: {
       early: "Stabilizacja i powolne odbicie",
       mid: "Silne — rosnący popyt i czynsze",

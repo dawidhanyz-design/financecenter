@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Finance Center</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232f6fed'/%3E%3Ctext x='50' y='70' font-size='58' font-family='Arial, sans-serif' font-weight='700' fill='white' text-anchor='middle'%3E$%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=7">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -72,13 +72,7 @@
           <h2 id="cycle-phase-name">–</h2>
           <p id="cycle-phase-desc" class="cycle-desc">–</p>
           <span class="muted" id="cycle-confidence">–</span>
-        </div>
-        <div class="cycle-wheel-wrap">
-          <div class="cycle-wheel" id="cycle-wheel">
-            <div class="cycle-wheel-pointer" id="cycle-wheel-pointer"></div>
-            <div class="cycle-wheel-center"></div>
-          </div>
-          <div class="cycle-wheel-labels" id="cycle-wheel-labels"></div>
+          <p class="data-freshness" id="cycle-data-freshness">–</p>
         </div>
       </div>
 
@@ -97,9 +91,16 @@
             <p class="score-hero-note">Wyższy wynik = gospodarka "gorętsza" (silniejszy wzrost), niższy = słabsza, bliżej recesji. 0–20 Recesja · 20–45 Późny cykl · 45–70 Środek cyklu · 70–100 Wczesny cykl.</p>
           </div>
         </div>
-        <canvas id="chart-cycle-score" height="140"></canvas>
+        <div class="score-chart-wrap">
+          <canvas id="chart-cycle-score" height="160"></canvas>
+        </div>
         <div class="score-breakdown">
-          <h3>Z czego wynika ten wynik (baza 50 pkt + wkład wskaźników)</h3>
+          <h3>
+            Z czego wynika ten wynik
+            <span class="info-badge" tabindex="0">ⓘ
+              <span class="info-popup" id="base-explainer-popup">–</span>
+            </span>
+          </h3>
           <div id="score-breakdown-list"></div>
           <div class="score-total-row">
             <span>Wynik końcowy</span>
@@ -111,6 +112,7 @@
       <div class="card">
         <div class="card-header">
           <h2>Kluczowe wskaźniki makroekonomiczne</h2>
+          <span class="muted">Najedź na wskaźnik, by zobaczyć co to jest i jak liczymy punkty</span>
         </div>
         <div class="indicators-grid" id="indicators-grid"></div>
       </div>
@@ -148,9 +150,16 @@
       </div>
 
       <div class="card">
+        <div class="card-header"><h2>Dodaj aktywo do obserwowanych</h2></div>
+        <div class="asset-search-wrap">
+          <input id="watch-add-input" type="text" placeholder="Wpisz nazwę lub ticker, np. Tesla, S&P 500, WIG20..." autocomplete="off">
+          <div class="asset-suggestions" id="watch-suggestions"></div>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="card-header">
           <h2>Obserwowane aktywa</h2>
-          <span class="muted">Szukaj i dodawaj przez pole w prawym górnym rogu</span>
         </div>
         <div class="watch-table" id="watch-table">
           <div class="watch-row watch-row-head">
@@ -248,12 +257,12 @@
   </main>
 </div>
 
-<script src="js/data.js?v=4"></script>
+<script src="js/data.js?v=7"></script>
 <script src="js/config.local.js"></script>
 <script src="js/firebase-config.js"></script>
-<script src="js/live-data.js?v=4"></script>
+<script src="js/live-data.js?v=7"></script>
 <script src="js/sync.js"></script>
 <script src="js/portfolio.js"></script>
-<script src="js/app.js?v=4"></script>
+<script src="js/app.js?v=7"></script>
 </body>
 </html>

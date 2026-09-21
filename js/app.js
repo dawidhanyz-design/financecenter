@@ -149,8 +149,9 @@ function renderCycleView() {
   document.getElementById("cycle-phase-name").textContent = phase.name;
   document.getElementById("cycle-phase-desc").textContent = CURRENT_CYCLE.description;
   document.getElementById("cycle-confidence").textContent = `Pewność oceny: ${CURRENT_CYCLE.confidence}`;
+  document.getElementById("cycle-data-freshness").textContent = `Dane aktualne na: ${formatDataRefresh()} (aktualizacja raz dziennie o 8:00)`;
+  document.getElementById("base-explainer-popup").textContent = CYCLE_SCORE_BASE_EXPLANATION;
 
-  renderCycleWheel(phase);
   renderCycleScoreCard();
   renderIndicators();
   renderAssetQuickRow();
@@ -219,29 +220,6 @@ function renderCycleScoreCard() {
   });
 }
 
-function renderCycleWheel(phase) {
-  const midAngle = (phase.angle[0] + phase.angle[1]) / 2;
-  const cssRotate = ((midAngle - 180) + 360) % 360;
-  document.getElementById("cycle-wheel-pointer").style.transform = `translateX(-50%) rotate(${cssRotate}deg)`;
-
-  const positions = {
-    early: { top: "4px", right: "-4px", textAlign: "right" },
-    mid: { bottom: "4px", right: "-4px", textAlign: "right" },
-    late: { bottom: "4px", left: "-4px", textAlign: "left" },
-    recession: { top: "4px", left: "-4px", textAlign: "left" },
-  };
-
-  const labelsWrap = document.getElementById("cycle-wheel-labels");
-  labelsWrap.innerHTML = "";
-  CYCLE_PHASES.forEach((p) => {
-    const el = document.createElement("div");
-    el.className = `cycle-wheel-label${p.id === phase.id ? " is-current" : ""}`;
-    el.textContent = p.name.split(" (")[0];
-    Object.assign(el.style, positions[p.id]);
-    labelsWrap.appendChild(el);
-  });
-}
-
 function renderIndicators() {
   const grid = document.getElementById("indicators-grid");
   grid.innerHTML = "";
@@ -250,7 +228,10 @@ function renderIndicators() {
     div.className = "indicator-card";
     div.innerHTML = `
       <span class="indicator-label-row">
-        <span class="indicator-label">${ind.label}</span>
+        <span class="indicator-label">
+          ${ind.label}
+          <span class="info-badge" tabindex="0">ⓘ<span class="info-popup">${ind.explainer}</span></span>
+        </span>
         <span class="indicator-points ${ind.points >= 0 ? "pl-positive" : "pl-negative"}">${ind.points > 0 ? "+" : ""}${ind.points} pkt</span>
       </span>
       <span class="indicator-value trend-${ind.trend}">${ind.value}</span>
@@ -267,10 +248,14 @@ function renderAssetQuickRow() {
     const div = document.createElement("div");
     div.className = "asset-quick-item";
     div.innerHTML = `
-      <span class="asset-quick-name"><span>${a.icon}</span> ${a.name}</span>
+      <span class="asset-quick-name">
+        <span>${a.icon}</span> ${a.name}
+        <span class="info-badge" tabindex="0">ⓘ<span class="info-popup">${a.rationale}</span></span>
+      </span>
       <span class="verdict-badge verdict-${a.verdictLevel}">${a.verdict}</span>
     `;
-    div.addEventListener("click", () => {
+    div.addEventListener("click", (e) => {
+      if (e.target.closest(".info-badge")) return;
       state.selectedAssetId = a.id;
       setView("assets");
     });
@@ -358,6 +343,11 @@ function renderAssetDetail(id) {
         </div>
         <div class="score-total-row"><span>Wynik końcowy</span><strong>${a.score} / 100</strong></div>
       </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h2>Dlaczego taka ocena?</h2></div>
+      <p class="rationale-text">${a.rationale}</p>
     </div>
 
     <div class="card">
@@ -828,6 +818,12 @@ wireInstrumentSearch(tickerSearchInput, document.getElementById("ticker-suggesti
   tickerSearchInput.value = ticker;
   setView("market");
   renderMarketResult(ticker);
+});
+
+const watchAddInput = document.getElementById("watch-add-input");
+wireInstrumentSearch(watchAddInput, document.getElementById("watch-suggestions"), (ticker) => {
+  addToWatchlist(ticker);
+  watchAddInput.value = "";
 });
 
 // ---- Status źródła danych (sidebar + ustawienia) ----

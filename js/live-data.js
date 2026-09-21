@@ -85,15 +85,62 @@ function matchCryptoSymbol(query) {
   return null;
 }
 
+// ---- Upraszczanie wyników: jedna spółka/krypto = jeden wynik, bez dziesiątek wersji ----
+// z różnych giełd (ADR-y, warranty, ETN-y na dany walor, zagraniczne notowania).
+const HIGH_PRIORITY_TYPES = new Set(["Common Stock", "Digital Currency", "Index"]);
+const LOW_PRIORITY_TYPES = new Set(["ETF", "Warrant", "Depositary Receipt", "Structured Product", "Bond"]);
+const PREFERRED_EXCHANGES = ["NASDAQ", "NYSE", "ARCA", "BATS", "Cboe US", "LSE", "XETR", "Euronext", "Warsaw Stock Exchange", "TSX", "SIX"];
+
+function simplifyName(name) {
+  return (name || "")
+    .toLowerCase()
+    .replace(/\b(inc|incorporated|corp|corporation|co|ltd|limited|plc|s\.?a\.?|ag|nv|se|group|holdings?|the|company)\b\.?/g, "")
+    .replace(/[^a-z0-9]/g, "")
+    .trim();
+}
+
+function exchangeRank(exchange) {
+  const idx = PREFERRED_EXCHANGES.indexOf(exchange);
+  return idx === -1 ? 50 : idx;
+}
+
+function typeRank(type) {
+  if (HIGH_PRIORITY_TYPES.has(type)) return 0;
+  if (LOW_PRIORITY_TYPES.has(type)) return 2;
+  return 1;
+}
+
+function resultRank(r) {
+  return typeRank(r.type) * 1000 + exchangeRank(r.exchange) + (r.currency === "USD" ? 0 : 1);
+}
+
+function simplifySearchResults(results) {
+  const groups = new Map();
+  results.forEach((r) => {
+    const key = simplifyName(r.name) || r.ticker;
+    const existing = groups.get(key);
+    if (!existing || resultRank(r) < resultRank(existing)) groups.set(key, r);
+  });
+  let deduped = [...groups.values()];
+
+  // Jeśli mamy realny walor (akcja/krypto/indeks), odfiltruj "opakowania" (ETF/warrant/ETN itp.)
+  const hasPrimary = deduped.some((r) => HIGH_PRIORITY_TYPES.has(r.type));
+  if (hasPrimary) deduped = deduped.filter((r) => !LOW_PRIORITY_TYPES.has(r.type));
+  return deduped;
+}
+
 async function tdSearch(query) {
   if (!query.trim()) return [];
-  const json = await tdFetch("/symbol_search", { symbol: query, outputsize: 8 });
+  const json = await tdFetch("/symbol_search", { symbol: query, outputsize: 15 });
   let results = (json.data || []).map(mapSearchResult);
 
   // Doszukaj bezpośredniej pary krypto (np. BTC/USD), jeśli zwykłe wyniki jej nie zawierają —
-  // żeby "bitcoin" pokazywał kurs BTC, a nie ETF-y śledzące bitcoina.
-  const hasCrypto = results.some((r) => r.type === "Digital Currency");
+  // żeby "bitcoin" pokazywał kurs BTC, a nie ETF-y śledzące bitcoina (albo inną parę, w której
+  // BTC jest tylko walutą kwotowania, np. "SOL/BTC").
   const cryptoSymbol = matchCryptoSymbol(query);
+  const hasCrypto = cryptoSymbol
+    ? results.some((r) => r.type === "Digital Currency" && r.ticker.startsWith(`${cryptoSymbol}/`))
+    : results.some((r) => r.type === "Digital Currency");
   if (!hasCrypto && cryptoSymbol) {
     try {
       const cryptoJson = await tdFetch("/symbol_search", { symbol: `${cryptoSymbol}/USD`, outputsize: 3 });
@@ -105,9 +152,11 @@ async function tdSearch(query) {
   }
 
   const seen = new Set();
+  results = results.filter((r) => (seen.has(r.ticker) ? false : (seen.add(r.ticker), true)));
+  results = simplifySearchResults(results);
+
   return results
     .sort((a, b) => (a.type === "Digital Currency" ? -1 : 0) - (b.type === "Digital Currency" ? -1 : 0))
-    .filter((r) => (seen.has(r.ticker) ? false : (seen.add(r.ticker), true)))
     .slice(0, 8);
 }
 
