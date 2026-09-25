@@ -2,10 +2,20 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Finance Center</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232f6fed'/%3E%3Ctext x='50' y='70' font-size='58' font-family='Arial, sans-serif' font-weight='700' fill='white' text-anchor='middle'%3E$%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="css/style.css?v=7">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#f3f5f9">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Finanse">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Finanse</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="css/style.css?v=10">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -14,54 +24,59 @@
 
 <div class="app">
 
-  <aside class="sidebar">
-    <div class="brand">
-      <span class="brand-mark">FC</span>
-      <span class="brand-name">Finance Center</span>
-    </div>
-    <nav class="nav">
-      <button class="nav-item" data-view="watch">
-        <span class="nav-icon">▥</span><span class="nav-label">Aktywa</span>
-      </button>
-      <button class="nav-item active" data-view="cycle">
-        <span class="nav-icon">◐</span><span class="nav-label">Stan obecny</span>
-      </button>
-      <button class="nav-item" data-view="assets">
-        <span class="nav-icon">▦</span><span class="nav-label">Klasy aktywów</span>
-      </button>
-      <button class="nav-item" data-view="market">
-        <span class="nav-icon">◎</span><span class="nav-label">Analizy rynkowe</span>
-      </button>
-      <button class="nav-item" data-view="settings">
-        <span class="nav-icon">⚙</span><span class="nav-label">Ustawienia</span>
-      </button>
-    </nav>
-    <div class="sidebar-footer">
-      <span class="data-status" id="data-status">
-        <span class="dot dot-mock" id="data-status-dot"></span> <span id="data-status-text">Dane przykładowe</span>
-      </span>
-    </div>
-  </aside>
-
-  <main class="main">
-
-    <header class="topbar">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="topbar-row">
+        <div class="brand">
+          <span class="brand-mark">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>
+          </span>
+          <span class="brand-name">Finanse</span>
+        </div>
+        <div class="topbar-actions">
+          <span class="data-status" id="data-status" title="Źródło danych rynkowych">
+            <span class="dot dot-mock" id="data-status-dot"></span><span id="data-status-text">Dane przykładowe</span>
+          </span>
+          <div class="currency-switch" id="currency-switch">
+            <button type="button" data-currency="PLN">PLN</button>
+            <button type="button" data-currency="USD">USD</button>
+            <button type="button" data-currency="EUR">EUR</button>
+          </div>
+        </div>
+      </div>
       <div class="topbar-title">
         <h1 id="view-title">Stan obecny</h1>
         <p id="view-subtitle">Na jakim etapie cyklu koniunkturalnego jesteśmy</p>
       </div>
-      <div class="topbar-actions">
-        <div class="search-box">
-          <input id="ticker-search" type="text" placeholder="Szukaj spółki, np. Apple, AAPL...">
-          <div class="asset-suggestions" id="ticker-suggestions"></div>
-        </div>
-        <div class="currency-switch" id="currency-switch">
-          <button type="button" data-currency="PLN">PLN</button>
-          <button type="button" data-currency="USD">USD</button>
-          <button type="button" data-currency="EUR">EUR</button>
-        </div>
+      <div class="search-box">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="ticker-search" type="text" placeholder="Szukaj spółki, np. Apple, AAPL..." autocomplete="off">
+        <div class="asset-suggestions" id="ticker-suggestions"></div>
       </div>
-    </header>
+    </div>
+  </header>
+
+  <nav class="tabbar" aria-label="Nawigacja główna">
+    <div class="tabbar-inner">
+      <button class="nav-item" data-view="watch">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg><span class="nav-label">Aktywa</span>
+      </button>
+      <button class="nav-item active" data-view="cycle">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span class="nav-label">Stan obecny</span>
+      </button>
+      <button class="nav-item" data-view="assets">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span class="nav-label">Klasy</span>
+      </button>
+      <button class="nav-item" data-view="market">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg><span class="nav-label">Analizy</span>
+      </button>
+      <button class="nav-item" data-view="settings">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg><span class="nav-label">Ustawienia</span>
+      </button>
+    </div>
+  </nav>
+
+  <main class="main">
 
     <!-- STAN OBECNY (cykl koniunkturalny) -->
     <section id="view-cycle" class="view active">
@@ -257,12 +272,12 @@
   </main>
 </div>
 
-<script src="js/data.js?v=7"></script>
+<script src="js/data.js?v=8"></script>
 <script src="js/config.local.js"></script>
 <script src="js/firebase-config.js"></script>
-<script src="js/live-data.js?v=7"></script>
+<script src="js/live-data.js?v=8"></script>
 <script src="js/sync.js"></script>
 <script src="js/portfolio.js"></script>
-<script src="js/app.js?v=7"></script>
+<script src="js/app.js?v=8"></script>
 </body>
 </html>
