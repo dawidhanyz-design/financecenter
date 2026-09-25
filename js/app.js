@@ -14,6 +14,7 @@ function saveWatchlist() {
 }
 
 const CURRENCY_STORAGE_KEY = "finance-center-currency";
+const PRE_SYNC_BACKUP_KEY = "finance-center-pre-sync-backup";
 
 function loadCurrency() {
   try {
@@ -41,19 +42,34 @@ const state = {
   transactions: loadTransactions(),
 };
 
-// ---- Synchronizacja obserwowanych aktywów (Firebase) ----
-function applyRemoteWatchlist(tickers) {
-  state.watchlist = tickers;
-  saveWatchlist();
+// ---- Synchronizacja danych (Firebase) ----
+function currentSnapshot() {
+  return { tickers: state.watchlist, transactions: state.transactions };
+}
+
+// Zastosowanie danych z chmury lokalnie. Zapisujemy prosto do localStorage (bez pushIfSynced),
+// żeby nie odsyłać ich z powrotem do chmury, a dane identyczne z lokalnymi pomijamy.
+function applyRemoteSnapshot(remote) {
+  if (JSON.stringify(remote) === JSON.stringify(currentSnapshot())) return;
+  try { localStorage.setItem(PRE_SYNC_BACKUP_KEY, JSON.stringify(currentSnapshot())); } catch (e) { /* ignore */ }
+  state.watchlist = remote.tickers;
+  state.transactions = remote.transactions || {};
+  localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(state.watchlist));
+  localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(state.transactions));
   if (state.currentView === "watch") renderWatchlistView();
 }
 
-function pushWatchlistIfSynced() {
-  if (state.syncCode) pushWatchlistToCloud(state.syncCode, state.watchlist);
+function pushIfSynced() {
+  if (state.syncCode) pushToCloud(state.syncCode, currentSnapshot());
 }
 
 if (state.syncCode) {
-  startSync(state.syncCode, applyRemoteWatchlist);
+  startSync(state.syncCode, applyRemoteSnapshot);
+}
+
+// Prosimy przeglądarkę o trwały zapis danych — nie usunie ich sama przy braku miejsca.
+if (navigator.storage && navigator.storage.persist) {
+  navigator.storage.persist().catch(() => {});
 }
 
 // Przelicza kwotę z jej waluty natywnej (domyślnie PLN — tak są wyrażone dane przykładowe)
@@ -405,7 +421,7 @@ function addToWatchlist(ticker) {
   if (!state.watchlist.includes(ticker)) {
     state.watchlist.push(ticker);
     saveWatchlist();
-    pushWatchlistIfSynced();
+    pushIfSynced();
   }
   renderWatchlistView();
 }
@@ -414,7 +430,7 @@ function removeFromWatchlist(ticker) {
   state.watchlist = state.watchlist.filter((t) => t !== ticker);
   state.expandedTickers.delete(ticker);
   saveWatchlist();
-  pushWatchlistIfSynced();
+  pushIfSynced();
   renderWatchlistView();
 }
 
@@ -874,51 +890,133 @@ document.getElementById("td-apikey-clear").addEventListener("click", () => {
 updateDataStatus();
 
 // ---- Ustawienia: synchronizacja między urządzeniami ----
+const syncCodeInput = document.getElementById("sync-code-input");
+const syncCodeDisplay = document.getElementById("sync-code-display");
+
 function updateSyncStatus() {
   const badge = document.getElementById("sync-status-badge");
   const text = document.getElementById("sync-status-text");
   if (state.syncCode) {
-    badge.textContent = "Połączono";
+    badge.textContent = "Włączona";
     badge.className = "verdict-badge verdict-positive";
-    text.textContent = `Ta lista jest zsynchronizowana pod kodem „${state.syncCode}”. Zmiany na tym i innych urządzeniach z tym samym kodem pojawiają się automatycznie.`;
+    text.textContent = "Twoje aktywa i transakcje są kopiowane do chmury i pojawią się na każdym urządzeniu, na którym wpiszesz poniższy kod.";
+    syncCodeDisplay.classList.remove("hidden");
+    document.getElementById("sync-code-value").textContent = state.syncCode;
   } else {
-    badge.textContent = "Brak synchronizacji";
+    badge.textContent = "Wyłączona";
     badge.className = "verdict-badge verdict-neutral";
-    text.textContent = "Lista obserwowanych aktywów jest zapisana tylko na tym urządzeniu.";
+    text.textContent = "Dane są zapisane tylko na tym urządzeniu. Włącz synchronizację, żeby mieć je też po zmianie telefonu.";
+    syncCodeDisplay.classList.add("hidden");
   }
 }
 
-const syncCodeInput = document.getElementById("sync-code-input");
-syncCodeInput.value = state.syncCode;
-
-document.getElementById("sync-code-save").addEventListener("click", async () => {
-  const code = syncCodeInput.value.trim();
-  if (!code) return;
-  const btn = document.getElementById("sync-code-save");
-  btn.disabled = true;
-  btn.textContent = "Łączenie…";
-  try {
-    await enableSync(code, state.watchlist, applyRemoteWatchlist);
-    state.syncCode = code;
-    saveSyncCode(code);
-    updateSyncStatus();
-  } catch (e) {
-    document.getElementById("sync-status-text").textContent = `Nie udało się połączyć: ${e.message}`;
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Połącz";
+async function connectSync(code, buttonEl, idleLabel) {
+  const normalized = normalizeSyncCode(code);
+  const statusText = document.getElementById("sync-status-text");
+  if (normalized.length < SYNC_MIN_CODE_LENGTH) {
+    statusText.textContent = `Kod jest za krótki (min. ${SYNC_MIN_CODE_LENGTH} znaków) — łatwo go odgadnąć. Użyj przycisku „Włącz synchronizację”, który tworzy losowy kod.`;
+    return;
   }
+  buttonEl.disabled = true;
+  buttonEl.textContent = "Łączenie…";
+  try {
+    await enableSync(normalized, currentSnapshot(), applyRemoteSnapshot);
+    state.syncCode = normalized;
+    saveSyncCode(normalized);
+    syncCodeInput.value = "";
+    updateSyncStatus();
+    if (state.currentView === "watch") renderWatchlistView();
+  } catch (e) {
+    statusText.textContent = `Nie udało się połączyć: ${e.message}`;
+  } finally {
+    buttonEl.disabled = false;
+    buttonEl.textContent = idleLabel;
+  }
+}
+
+document.getElementById("sync-generate").addEventListener("click", (e) => {
+  connectSync(generateSyncCode(), e.currentTarget, "Włącz synchronizację (nowy kod)");
+});
+
+document.getElementById("sync-code-save").addEventListener("click", (e) => {
+  const code = syncCodeInput.value.trim();
+  if (code) connectSync(code, e.currentTarget, "Połącz");
+});
+
+document.getElementById("sync-code-copy").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  try {
+    await navigator.clipboard.writeText(state.syncCode);
+    btn.textContent = "Skopiowano ✓";
+  } catch (err) {
+    btn.textContent = "Zaznacz kod i skopiuj ręcznie";
+  }
+  setTimeout(() => { btn.textContent = "Kopiuj kod"; }, 2000);
 });
 
 document.getElementById("sync-code-clear").addEventListener("click", () => {
   stopSync();
   clearSyncCode();
   state.syncCode = "";
-  syncCodeInput.value = "";
   updateSyncStatus();
 });
 
 updateSyncStatus();
 
+// ---- Ustawienia: kopia zapasowa (tekst) ----
+function buildBackup() {
+  return JSON.stringify({
+    app: "finanse",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    watchlist: state.watchlist,
+    transactions: state.transactions,
+    currency: state.currency,
+  }, null, 2);
+}
+
+const backupArea = document.getElementById("backup-text");
+const backupStatus = document.getElementById("backup-status");
+
+document.getElementById("backup-copy").addEventListener("click", async () => {
+  const text = buildBackup();
+  backupArea.value = text;
+  try {
+    await navigator.clipboard.writeText(text);
+    backupStatus.textContent = "Kopia skopiowana do schowka — wklej ją np. do Notatek lub wiadomości do siebie.";
+  } catch (e) {
+    backupArea.select();
+    backupStatus.textContent = "Nie udało się skopiować automatycznie — tekst kopii jest w polu poniżej, zaznacz go i skopiuj ręcznie.";
+  }
+});
+
+document.getElementById("backup-restore").addEventListener("click", () => {
+  let data;
+  try {
+    data = JSON.parse(backupArea.value);
+  } catch (e) {
+    backupStatus.textContent = "To nie wygląda na kopię z Finansów — wklej cały tekst, który zaczyna się od „{”.";
+    return;
+  }
+  if (data.app !== "finanse" || !Array.isArray(data.watchlist) || typeof data.transactions !== "object" || data.transactions === null) {
+    backupStatus.textContent = "Ten tekst nie jest poprawną kopią Finansów.";
+    return;
+  }
+  state.watchlist = data.watchlist.filter((t) => typeof t === "string");
+  state.transactions = data.transactions;
+  if (data.currency && FX_RATES_PLN[data.currency]) state.currency = data.currency;
+  saveWatchlist();
+  saveTransactions();
+  saveCurrency();
+  renderCurrencySwitch();
+  backupArea.value = "";
+  backupStatus.textContent = `Przywrócono: ${state.watchlist.length} aktywów i transakcje.`;
+});
+
 // ---- Init ----
 setView("cycle");
+
+// iOS Safari ignoruje user-scalable=no dla pinch-zoom — blokujemy gest ręcznie
+["gesturestart", "gesturechange", "gestureend"].forEach((evt) => {
+  document.addEventListener(evt, (e) => e.preventDefault());
+});

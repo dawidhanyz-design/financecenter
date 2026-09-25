@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#f3f5f9">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=10">
+<link rel="stylesheet" href="css/style.css?v=11">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -252,12 +252,31 @@
           <span class="verdict-badge" id="sync-status-badge">–</span>
         </div>
         <p id="sync-status-text" class="muted">–</p>
-        <div class="apikey-row">
-          <input type="text" id="sync-code-input" placeholder="Wymyśl własny kod, np. dawid-portfel-2026">
-          <button class="btn btn-primary" id="sync-code-save">Połącz</button>
-          <button class="btn btn-secondary" id="sync-code-clear">Rozłącz</button>
+        <div id="sync-code-display" class="code-display hidden">
+          <span class="code-label">Twój kod synchronizacji</span>
+          <code id="sync-code-value">–</code>
+          <button class="btn btn-secondary" id="sync-code-copy" type="button">Kopiuj kod</button>
         </div>
-        <p class="note">Wpisz <strong>ten sam kod</strong> na każdym urządzeniu, które ma dzielić listę obserwowanych aktywów — zmiany pojawią się na innych urządzeniach automatycznie, na żywo. To nie jest hasło ani prawdziwe logowanie — traktuj kod jak nazwę współdzielonej listy, nie jak sekret chroniący dane finansowe.</p>
+        <div class="apikey-row">
+          <button class="btn btn-primary" id="sync-generate" type="button">Włącz synchronizację (nowy kod)</button>
+          <button class="btn btn-secondary" id="sync-code-clear" type="button">Wyłącz</button>
+        </div>
+        <p class="note"><strong>Nowy telefon?</strong> Zainstaluj apkę, wejdź w Ustawienia i wpisz tu kod z poprzedniego urządzenia — wszystkie aktywa i transakcje wrócą.</p>
+        <div class="apikey-row">
+          <input type="text" id="sync-code-input" placeholder="Wklej kod z innego urządzenia" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button class="btn btn-primary" id="sync-code-save" type="button">Połącz</button>
+        </div>
+        <p class="note">Kod działa jak klucz do Twoich danych — kto go zna, może je odczytać i zmienić. Nikomu go nie podawaj. Jest długi i losowy, więc nie da się go odgadnąć. Dane w chmurze zawierają tylko listę aktywów i transakcje (ilość, cena) — nie klucz API.</p>
+      </div>
+      <div class="card">
+        <div class="card-header"><h2>Kopia zapasowa</h2></div>
+        <p class="muted">Niezależna od synchronizacji: skopiuj dane jako tekst i schowaj je np. w Notatkach. Możesz je wkleić poniżej na dowolnym urządzeniu, żeby przywrócić aktywa i transakcje.</p>
+        <div class="apikey-row">
+          <button class="btn btn-secondary" id="backup-copy" type="button">Skopiuj kopię</button>
+          <button class="btn btn-primary" id="backup-restore" type="button">Przywróć z tekstu</button>
+        </div>
+        <textarea id="backup-text" class="backup-text" rows="4" placeholder="Tu wklej skopiowaną kopię zapasową…" spellcheck="false"></textarea>
+        <p class="note" id="backup-status"></p>
       </div>
       <div class="card">
         <div class="card-header"><h2>Dane makroekonomiczne (cykl koniunkturalny)</h2></div>
@@ -272,12 +291,12 @@
   </main>
 </div>
 
-<script src="js/data.js?v=8"></script>
+<script src="js/data.js?v=11"></script>
 <script src="js/config.local.js"></script>
 <script src="js/firebase-config.js"></script>
-<script src="js/live-data.js?v=8"></script>
-<script src="js/sync.js"></script>
-<script src="js/portfolio.js"></script>
-<script src="js/app.js?v=8"></script>
+<script src="js/live-data.js?v=11"></script>
+<script src="js/sync.js?v=11"></script>
+<script src="js/portfolio.js?v=11"></script>
+<script src="js/app.js?v=11"></script>
 </body>
 </html>

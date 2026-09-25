@@ -13,6 +13,7 @@ function loadTransactions() {
 
 function saveTransactions() {
   localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(state.transactions));
+  if (typeof pushIfSynced === "function") pushIfSynced();
 }
 
 function addTransaction(ticker, txn) {
